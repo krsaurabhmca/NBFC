@@ -101,6 +101,9 @@ require_once '../includes/sidebar.php';
                                     <div class="text-xs text-indigo-300 uppercase tracking-widest font-bold"><?= $a['account_type'] ?></div>
                                     <div class="font-bold text-lg <?= $a['account_type']=='Loan' ? 'text-rose-400' : 'text-emerald-400' ?>">
                                         <?= formatCurrency(abs($a['current_balance'])) ?>
+                                        <?php if($a['account_type'] == 'Savings' && $a['interest_accrued'] > 0): ?>
+                                            <p class="text-[10px] text-indigo-300 font-normal mt-0.5">₹<?= number_format($a['interest_accrued'], 2) ?> Accrued</p>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
@@ -151,19 +154,22 @@ require_once '../includes/sidebar.php';
                                         
                                         <!-- Determine Credit/Debit presentation logic based on account type and transaction type -->
                                         <?php
+                                            $amount_fmt = formatCurrency($t['amount']);
                                             $cr = '-'; $dr = '-';
-                                            // Simplistic Ledger Logging
-                                            if($t['account_type'] == 'Loan') {
-                                                if($t['transaction_type'] == 'Transaction' || $t['transaction_type'] == 'Account-Open') {
-                                                    $dr = formatCurrency($t['amount']); // Disbursal is debit (money out of NBFC/increases loan balance)
+                                            
+                                            if ($t['account_type'] == 'Loan') {
+                                                // Loan: EMI/Deposit reduces debt (Credit), Disbursal/Withdrawal/Fine increases debt (Debit)
+                                                if (in_array($t['transaction_type'], ['EMI', 'Deposit'])) {
+                                                    $cr = $amount_fmt;
                                                 } else {
-                                                    $cr = formatCurrency($t['amount']); // Repayment/EMI is credit
+                                                    $dr = $amount_fmt;
                                                 }
                                             } else {
-                                                if(in_array($t['transaction_type'], ['Deposit', 'Interest', 'Account-Open'])) {
-                                                    $cr = formatCurrency($t['amount']); // Money entering customer account
+                                                // Deposit styles: Deposit/Interest/Account-Open/EMI increases balance (Credit), Withdrawal/Fine decreases (Debit)
+                                                if (in_array($t['transaction_type'], ['Deposit', 'Interest', 'Account-Open', 'EMI'])) {
+                                                    $cr = $amount_fmt;
                                                 } else {
-                                                    $dr = formatCurrency($t['amount']); // Money leaving (withdrawal)
+                                                    $dr = $amount_fmt;
                                                 }
                                             }
                                         ?>

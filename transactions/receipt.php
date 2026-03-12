@@ -84,8 +84,13 @@ if(!$txn) {
                 <div class="py-4 border-y border-gray-100 my-2">
                     <div class="grid grid-cols-2 mb-2 items-center">
                         <span class="text-gray-700 font-bold">Transaction Type</span>
+                        <?php
+                            $is_credit = ($txn['account_type'] == 'Loan') 
+                                ? in_array($txn['transaction_type'], ['EMI', 'Deposit']) 
+                                : in_array($txn['transaction_type'], ['Deposit', 'Interest', 'Account-Open', 'EMI']);
+                        ?>
                         <span class="text-right font-bold uppercase tracking-wider text-xs px-2 py-1 rounded w-max ml-auto
-                            <?= in_array($txn['transaction_type'], ['Deposit','Interest','Account-Open']) ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' ?>">
+                            <?= $is_credit ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' ?>">
                             <?= htmlspecialchars($txn['transaction_type']) ?>
                         </span>
                     </div>

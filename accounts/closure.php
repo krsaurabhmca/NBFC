@@ -119,25 +119,40 @@ if($account_id > 0) {
         if($selected_acc['account_type'] == 'FD') {
             $calc['interest_accrued'] = $p * pow((1 + $r), $t) - $p; // simplified annual compounding for pre-closure calc
         } elseif($selected_acc['account_type'] == 'RD') {
-            $calc['interest_accrued'] = ($p * $r * $t) / 2; // Rough average balance approximation
+            // SAFE RD CALCULATION: Sum interest on each deposit from its actual date
+            // This prevents bank loss when multiple EMIs are paid in a lump sum at the end
+            $txn_q = mysqli_query($conn, "SELECT amount, transaction_date FROM transactions 
+                                         WHERE account_id = $account_id AND transaction_type = 'Deposit' 
+                                         ORDER BY transaction_date ASC");
+            $calc['interest_accrued'] = 0;
+            $today_dt = new DateTime();
+            
+            while($t_row = mysqli_fetch_assoc($txn_q)) {
+                $dep_date = new DateTime($t_row['transaction_date']);
+                $diff = $today_dt->diff($dep_date);
+                $days_held = $diff->days;
+                
+                // Interest = (Amount * Rate * Days) / 36500
+                $calc['interest_accrued'] += ($t_row['amount'] * $calc['applied_rate'] * $days_held) / 36500;
+            }
         } else {
             $calc['interest_accrued'] = ($p * $r * $t); // MIS / Simple
         }
         
         $calc['total_payout'] = $p + $calc['interest_accrued'];
         
-        // If matured, we just use the projected maturity value formula (assumes full term completed)
+        // If matured, we use standard maturity norms (assumes on-time payments)
         if($calc['is_matured']) {
-            // Recalculate full term
-            $t_full = $selected_acc['tenure_months'] / 12;
-            $n = ($selected_acc['compounding_frequency'] == 'Quarterly') ? 4 : 1;
+            $r_base = $selected_acc['interest_rate'] / 100;
             if($selected_acc['account_type'] == 'FD') {
-                $calc['total_payout'] = $p * pow((1 + $r/$n), ($n * $t_full));
+                $n = ($selected_acc['compounding_frequency'] == 'Quarterly') ? 4 : 1;
+                $t_full = $selected_acc['tenure_months'] / 12;
+                $calc['total_payout'] = $p * pow((1 + $r_base/$n), ($n * $t_full));
             } elseif($selected_acc['account_type'] == 'RD') {
-                 // Formula: P * n(n+1)/2 * r/12
+                 // Standard formula for RD maturity: P * [((1+r)^n - 1) / (1-(1+r)^-1/3)] ... simplified:
                  $n_months = $selected_acc['tenure_months'];
                  $inst = $selected_acc['installment_amount'];
-                 $calc['total_payout'] = ($inst * $n_months) + ($inst * ($n_months * ($n_months + 1)) / 2 * ($r / 12));
+                 $calc['total_payout'] = ($inst * $n_months) + ($inst * ($n_months * ($n_months + 1)) / 2 * ($r_base / 12));
             } else {
                  $calc['total_payout'] = $p; // MIS principal return
             }

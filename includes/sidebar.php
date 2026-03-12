@@ -59,6 +59,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <i class="ph ph-gear text-xl"></i> Settings
         </a>
         <?php endif; ?>
+
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Help & Resources</p>
+        </div>
+        <a href="/nbfc/help/calculations.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors <?= $current_page == 'calculations.php' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
+            <i class="ph ph-calculator text-xl"></i> Calculation Help
+        </a>
     </nav>
     
     <div class="px-4 py-2 border-t border-slate-700 flex flex-col gap-2 relative">

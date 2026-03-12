@@ -19,12 +19,14 @@ if(!$acc) {
     die("Certificate not available for this account type or account not found.");
 }
 
-// Calculate Maturity Value (Basic Compound Interest for demo)
+// Calculate Maturity Value and Total Invested Sum
 $p = $acc['principal_amount'];
 $r = $acc['interest_rate'] / 100;
 $t = $acc['tenure_months'] / 12;
 
+$total_sum = $p;
 $monthly_return = 0;
+
 if($acc['account_type'] == 'FD') {
     // A = P(1 + r/n)^(nt)
     $n = ($acc['compounding_frequency'] == 'Quarterly') ? 4 : (($acc['compounding_frequency'] == 'Monthly') ? 12 : 1);
@@ -33,6 +35,7 @@ if($acc['account_type'] == 'FD') {
     // RD Formula approximation
     $installment = $acc['installment_amount'];
     $months = $acc['tenure_months'];
+    $total_sum = $installment * $months; // Total Principal Sum
     $maturity_value = 0;
     for($i = $months; $i > 0; $i--) {
         // Interest on each installment
@@ -45,6 +48,7 @@ if($acc['account_type'] == 'FD') {
 
 $maturity_value = round($maturity_value, 2);
 $monthly_return = round($monthly_return, 2);
+$total_sum = round($total_sum, 2);
 
 ?>
 <!DOCTYPE html>
@@ -114,14 +118,16 @@ $monthly_return = round($monthly_return, 2);
                 </div>
 
                 <div class="text-lg text-gray-700 leading-relaxed text-left relative z-10 space-y-4 px-4 font-serif">
-                    <p>This is to certify that we have received a sum of <strong class="text-xl font-bold font-mono text-gray-900 border-b border-gray-400 mx-1 px-2"><?= formatCurrency($acc['principal_amount'] ?: $acc['installment_amount']) ?></strong> 
-                    from Mr./Ms. <strong class="text-xl text-gray-900 border-b border-gray-400 mx-1 px-2 uppercase tracking-wide"><?= htmlspecialchars($acc['first_name'].' '.$acc['last_name']) ?></strong> 
-                    (Member No: <?= $acc['member_no'] ?>, Aadhar: <?= $acc['aadhar_no'] ?>) residing at <?= htmlspecialchars($acc['address']) ?>.</p>
+                    <p>This is to certify that Mr./Ms. <strong class="text-xl text-gray-900 border-b border-gray-400 mx-1 px-2 uppercase tracking-wide"><?= htmlspecialchars($acc['first_name'].' '.$acc['last_name']) ?></strong> 
+                    (Member No: <?= $acc['member_no'] ?>, Aadhar: <?= $acc['aadhar_no'] ?>) residing at <?= htmlspecialchars($acc['address']) ?> 
+                    has opened a <strong><?= $acc['account_type'] ?></strong> account with this bank with a 
+                    <?= $acc['account_type'] == 'RD' ? 'monthly commitment of <strong>' . formatCurrency($acc['installment_amount']) . '</strong> totaling to a principal sum of' : 'principal sum amount of' ?> 
+                    <strong class="text-xl font-bold font-mono text-gray-900 border-b border-gray-400 mx-1 px-2"><?= formatCurrency($total_sum) ?></strong>.</p>
 
-                    <p>This deposit is placed under the <strong><?= $acc['account_type'] ?></strong> scheme for a tenure of <strong><?= $acc['tenure_months'] ?> Months</strong> 
+                    <p>This deposit is placed for a tenure of <strong><?= $acc['tenure_months'] ?> Months</strong> 
                     bearing an interest rate of <strong><?= $acc['interest_rate'] ?>%</strong> p.a.</p>
 
-                    <div class="bg-gray-50/80 border border-gray-200 rounded-lg p-6 my-8 grid <?= $acc['account_type'] == 'MIS' ? 'grid-cols-3' : 'grid-cols-2' ?> gap-y-4">
+                    <div class="bg-gray-50/80 border border-gray-200 rounded-lg p-6 my-8 grid <?= in_array($acc['account_type'], ['MIS', 'RD']) ? 'grid-cols-3' : 'grid-cols-2' ?> gap-y-4">
                         <div>
                             <span class="block text-xs uppercase tracking-wider text-gray-500 font-sans font-bold mb-1">Date of Maturity</span>
                             <span class="text-xl font-bold text-gray-800 font-mono"><?= date('d F Y', strtotime($acc['maturity_date'])) ?></span>
@@ -130,6 +136,11 @@ $monthly_return = round($monthly_return, 2);
                         <div class="text-center border-l border-r border-gray-200 px-4">
                             <span class="block text-xs uppercase tracking-wider text-emerald-600 font-sans font-bold mb-1">Monthly Return</span>
                             <span class="text-xl font-bold text-emerald-700 tracking-tight font-mono"><?= formatCurrency($monthly_return) ?></span>
+                        </div>
+                        <?php elseif($acc['account_type'] == 'RD'): ?>
+                        <div class="text-center border-l border-r border-gray-200 px-4">
+                            <span class="block text-xs uppercase tracking-wider text-gray-500 font-sans font-bold mb-1">Total Principal</span>
+                            <span class="text-xl font-bold text-gray-800 tracking-tight font-mono"><?= formatCurrency($total_sum) ?></span>
                         </div>
                         <?php endif; ?>
                         <div class="text-right">

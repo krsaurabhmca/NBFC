@@ -10,7 +10,7 @@ $sql = "SELECT a.*, m.first_name, m.last_name, m.member_no, m.address,
         FROM accounts a 
         JOIN members m ON a.member_id = m.id 
         JOIN schemes s ON a.scheme_id = s.id 
-        WHERE a.id = $id AND a.account_type IN ('Savings', 'Loan')";
+        WHERE a.id = $id AND a.account_type IN ('Savings', 'Loan', 'RD', 'FD', 'MIS', 'DD')";
         
 $res = mysqli_query($conn, $sql);
 $acc = mysqli_fetch_assoc($res);
@@ -113,11 +113,16 @@ require_once '../includes/sidebar.php';
                 <?php if(mysqli_num_rows($txns) > 0): ?>
                     <?php while($t = mysqli_fetch_assoc($txns)): ?>
                         <?php
-                            $is_credit = in_array($t['transaction_type'], ['Deposit', 'EMI']);
-                            // Loan disbursals are technically debits to the bank but credit to the customer loan account balance conceptually in this basic db schema 
-                            // as we track negative balance. However, visually in a statement, Loan Disbursal is a Debit from the customer's standing.
-                            if($acc['account_type'] == 'Loan' && $t['transaction_type'] == 'Account-Open') {
-                                $is_credit = false; // Disbursal is a debit to their required payout
+                            if ($acc['account_type'] == 'Loan') {
+                                // For Loan accounts:
+                                // EMI, Deposit, Interest (if it's a refund/reversal?) are credits to the balance (reducing debt)
+                                // Account-Open (Disbursal), Withdrawal, Fine are debits (increasing debt)
+                                $is_credit = in_array($t['transaction_type'], ['EMI', 'Deposit']);
+                            } else {
+                                // For Savings, FD, RD, MIS, DD:
+                                // Deposit, Interest, Account-Open, EMI (if any) are credits (increasing balance)
+                                // Withdrawal, Fine, Pre-Closure are debits (decreasing balance)
+                                $is_credit = in_array($t['transaction_type'], ['Deposit', 'Interest', 'Account-Open', 'EMI']);
                             }
                         ?>
                         <tr class="hover:bg-gray-50">
@@ -152,6 +157,105 @@ require_once '../includes/sidebar.php';
             <p class="mt-2">Generated on <?= date('d M Y, H:i:s') ?>. This is a computer generated statement and requires no signature.</p>
         </div>
     </div>
+    
+    <?php if($acc['account_type'] == 'Loan'): ?>
+    <div class="p-8 pt-0 mt-8 page-break-before">
+        <h3 class="font-semibold text-gray-800 mb-4 pb-2 border-b">EMI Amortization & Clearance Schedule</h3>
+        <div class="bg-white border text-sm border-gray-100 rounded-lg overflow-hidden">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 border-b border-gray-100">
+                        <th class="py-3 px-4 font-semibold">Inst. No</th>
+                        <th class="py-3 px-4 font-semibold">Due Date</th>
+                        <th class="py-3 px-4 font-semibold text-right">EMI Amount</th>
+                        <th class="py-3 px-4 font-semibold text-right">Principal</th>
+                        <th class="py-3 px-4 font-semibold text-right">Interest</th>
+                        <th class="py-3 px-4 font-semibold text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php
+                    $sch_res = mysqli_query($conn, "SELECT * FROM loan_schedules WHERE account_id = $id ORDER BY installment_no ASC");
+                    while($sch = mysqli_fetch_assoc($sch_res)):
+                    ?>
+                    <tr class="hover:bg-gray-50/50">
+                        <td class="py-3 px-4 text-gray-600 font-mono">#<?= str_pad($sch['installment_no'], 2, '0', STR_PAD_LEFT) ?></td>
+                        <td class="py-3 px-4 text-gray-800 font-medium"><?= date('d M Y', strtotime($sch['due_date'])) ?></td>
+                        <td class="py-3 px-4 text-right font-medium text-gray-800"><?= formatCurrency($sch['emi_amount']) ?></td>
+                        <td class="py-3 px-4 text-right text-gray-500"><?= formatCurrency($sch['principal_component']) ?></td>
+                        <td class="py-3 px-4 text-right text-gray-500"><?= formatCurrency($sch['interest_component']) ?></td>
+                        <td class="py-3 px-4 text-right">
+                            <?php if($sch['status'] == 'Paid'): ?>
+                                <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">PAID</span>
+                            <?php elseif($sch['status'] == 'Overdue'): ?>
+                                <span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold uppercase">DUES</span>
+                            <?php else: ?>
+                                <span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold uppercase">UPCOMING</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if($acc['account_type'] == 'RD'): ?>
+    <div class="p-8 pt-0 mt-8 page-break-before">
+        <h3 class="font-semibold text-gray-800 mb-4 pb-2 border-b">Recurring Deposit Schedule</h3>
+        <p class="text-xs text-gray-500 mb-4">Dynamically calculated based on tracked ledger deposits matching the fixed monthly installment commitment.</p>
+        <div class="bg-white border text-sm border-gray-100 rounded-lg overflow-hidden">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 border-b border-gray-100">
+                        <th class="py-3 px-4 font-semibold">Inst. No</th>
+                        <th class="py-3 px-4 font-semibold">Scheduled Date</th>
+                        <th class="py-3 px-4 font-semibold text-right">Commitment Amount</th>
+                        <th class="py-3 px-4 font-semibold text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php
+                    $paid_res = mysqli_query($conn, "SELECT SUM(amount) as tot FROM transactions WHERE account_id = $id AND transaction_type = 'Deposit'");
+                    $paid_total = mysqli_fetch_assoc($paid_res)['tot'] ?? 0;
+                    $deposit_amt = $acc['installment_amount'];
+                    
+                    for($i = 1; $i <= $acc['tenure_months']; $i++):
+                        $due_date = date('Y-m-d', strtotime($acc['opening_date'] . " + $i months"));
+                        
+                        if($paid_total >= $deposit_amt) {
+                            $status = 'PAID';
+                            $status_class = 'bg-emerald-100 text-emerald-700';
+                            $paid_total -= $deposit_amt;
+                        } elseif($due_date < date('Y-m-d')) {
+                            $status = 'DUES';
+                            $status_class = 'bg-rose-100 text-rose-700';
+                        } else {
+                            $status = 'UPCOMING';
+                            $status_class = 'bg-amber-100 text-amber-700';
+                        }
+                    ?>
+                    <tr class="hover:bg-gray-50/50">
+                        <td class="py-3 px-4 text-gray-600 font-mono">#<?= str_pad($i, 2, '0', STR_PAD_LEFT) ?></td>
+                        <td class="py-3 px-4 text-gray-800 font-medium"><?= date('d M Y', strtotime($due_date)) ?></td>
+                        <td class="py-3 px-4 text-right font-medium text-gray-800"><?= formatCurrency($deposit_amt) ?></td>
+                        <td class="py-3 px-4 text-right">
+                            <span class="<?= $status_class ?> px-2 py-1 rounded text-[10px] font-bold uppercase"><?= $status ?></span>
+                        </td>
+                    </tr>
+                    <?php endfor; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
 </div>
+<style>
+    @media print {
+        .page-break-before { page-break-before: always; }
+    }
+</style>
 
 <?php require_once '../includes/footer.php'; ?>
