@@ -14,28 +14,22 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
-        /* Global Compactness Override */
-        html {
-            font-size: 14px; /* Shrinks the entire app slightly for high density */
-        }
-        
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6; /* Tailwind gray-100 */
-            letter-spacing: -0.011em; /* Tighter typography for modern look */
         }
         
         /* Select2 Tailwind Override */
         .select2-container--default .select2-selection--single {
-            height: 2.3rem; /* Slightly shorter for compactness */
-            border-color: #e5e7eb;
-            border-radius: 0.7rem;
+            height: 2.6rem;
+            border-color: #d1d5db;
+            border-radius: 0.5rem;
             display: flex;
             align-items: center;
-            font-size: 0.875rem; /* text-sm */
         }
         .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 2.3rem;
+            height: 2.6rem;
         }
 
         /* Transparent Ghost Scrollbar for Sidebar */
@@ -63,11 +57,6 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
             scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
         }
         
-        /* High Density Table & Grid Padding Controls */
-        .compact-grid {
-             gap: 0.5rem !important;
-        }
-
         /* Sidebar Toggle Styles */
         body.sidebar-collapsed aside {
             display: none !important;
