@@ -6,9 +6,15 @@ require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
 
 $filter_type = isset($_GET['type']) ? sanitize($conn, $_GET['type']) : '';
+$search = isset($_GET['search']) ? sanitize($conn, $_GET['search']) : '';
+
 $where = "WHERE 1=1";
 if($filter_type && in_array($filter_type, ['Savings', 'Loan', 'FD', 'RD', 'MIS', 'DD'])) {
     $where .= " AND a.account_type = '$filter_type'";
+}
+
+if($search) {
+    $where .= " AND (a.account_no LIKE '%$search%' OR m.first_name LIKE '%$search%' OR m.last_name LIKE '%$search%' OR m.member_no LIKE '%$search%')";
 }
 
 $sql = "SELECT a.*, m.first_name, m.last_name, m.member_no, s.scheme_name, s.interest_rate 
@@ -28,19 +34,25 @@ $result = mysqli_query($conn, $sql);
             <p class="text-gray-500 text-sm mt-1">Manage and view all customer accounts across schemes</p>
         </div>
         
-        <div class="flex items-center gap-3">
+        <div class="flex flex-col md:flex-row items-center gap-3">
+            <form action="" method="GET" class="relative group">
+                <input type="hidden" name="type" value="<?= $filter_type ?>">
+                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search Case/A/c.." class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64 bg-white shadow-sm transition-all group-hover:border-indigo-300">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg group-hover:text-indigo-500 transition-colors"></i>
+            </form>
+
             <div class="bg-white border border-gray-200 rounded-lg p-1 hidden lg:flex items-center text-sm shadow-sm">
                 <a href="view.php" class="px-3 py-1.5 rounded-md <?= !$filter_type ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">All</a>
-                <a href="?type=Savings" class="px-3 py-1.5 rounded-md <?= $filter_type=='Savings' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Savings</a>
-                <a href="?type=Loan" class="px-3 py-1.5 rounded-md <?= $filter_type=='Loan' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Loans</a>
-                <a href="?type=FD" class="px-3 py-1.5 rounded-md <?= $filter_type=='FD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">FDs</a>
-                <a href="?type=RD" class="px-3 py-1.5 rounded-md <?= $filter_type=='RD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">RDs</a>
-                <a href="?type=MIS" class="px-3 py-1.5 rounded-md <?= $filter_type=='MIS' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">MIS</a>
-                <a href="?type=DD" class="px-3 py-1.5 rounded-md <?= $filter_type=='DD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Daily Dep..</a>
+                <a href="?type=Savings&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='Savings' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Savings</a>
+                <a href="?type=Loan&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='Loan' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Loans</a>
+                <a href="?type=FD&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='FD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">FDs</a>
+                <a href="?type=RD&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='RD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">RDs</a>
+                <a href="?type=MIS&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='MIS' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">MIS</a>
+                <a href="?type=DD&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='DD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Daily Dep..</a>
             </div>
             
             <a href="open.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
-                <i class="ph ph-folder-plus text-lg"></i> Open Account
+                <i class="ph ph-folder-plus text-lg"></i>
             </a>
         </div>
     </div>

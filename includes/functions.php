@@ -59,8 +59,8 @@ function formatCurrency($amount) {
 }
 
 function logAction($conn, $user_id, $action, $details = '') {
-    // Create table if not exists
-    $create_sql = "CREATE TABLE IF NOT EXISTS `system_logs` (
+    // Create table if not exists (Ensure robustness)
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS `system_logs` (
         `id` int(11) NOT NULL AUTO_INCREMENT,
         `user_id` int(11) NOT NULL,
         `action` varchar(100) NOT NULL,
@@ -68,14 +68,48 @@ function logAction($conn, $user_id, $action, $details = '') {
         `ip_address` varchar(45) NOT NULL,
         `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-    mysqli_query($conn, $create_sql) or die(mysqli_error($conn));
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
     $user_id = (int)$user_id;
     $action = mysqli_real_escape_string($conn, $action);
     $details = mysqli_real_escape_string($conn, $details);
-    $ip = $_SERVER['REMOTE_ADDR'];
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
     $sql = "INSERT INTO system_logs (user_id, action, details, ip_address) VALUES ($user_id, '$action', '$details', '$ip')";
     mysqli_query($conn, $sql) or die(mysqli_error($conn));
+}
+
+function calculateAndUpdateFines($conn, $account_id, $as_of_date = null) {
+    // Get default fine settings
+    $late_fine_fixed = (float)getSetting($conn, 'loan_late_fine_fixed') ?: 50.00;
+    $grace_days = (int)getSetting($conn, 'loan_grace_days') ?: 3;
+    
+    $today = $as_of_date ?: date('Y-m-d');
+    
+    // Select Pending EMI installments that are past due
+    // A fine is only applied if current date > due_date + grace_days
+    $sql = "SELECT id, due_date, status, fine_amount, emi_amount 
+            FROM loan_schedules 
+            WHERE account_id = $account_id AND status != 'Paid'";
+            
+    $res = mysqli_query($conn, $sql);
+    while($sch = mysqli_fetch_assoc($res)) {
+        $due = $sch['due_date'];
+        $grace_date = date('Y-m-d', strtotime($due . " + $grace_days days"));
+        
+        $new_status = $sch['status'];
+        $new_fine = $sch['fine_amount'];
+        
+        if($today > $due) {
+            $new_status = 'Overdue';
+            if($today > $grace_date && $sch['fine_amount'] <= 0) {
+                 // Apply fine once if not already applied
+                 $new_fine = $late_fine_fixed;
+            }
+        }
+        
+        if($new_status != $sch['status'] || $new_fine != $sch['fine_amount']) {
+             mysqli_query($conn, "UPDATE loan_schedules SET status = '$new_status', fine_amount = $new_fine WHERE id = " . $sch['id']);
+        }
+    }
 }

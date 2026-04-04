@@ -76,6 +76,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <i class="ph ph-chart-line-up text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
             <span class="font-medium">Filing Reports</span>
         </a>
+        <a href="<?= APP_URL ?>reports/fine_collection.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'fine_collection.php' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
+            <i class="ph ph-coins text-xl text-amber-500 group-hover:scale-110 transition-transform"></i> 
+            <span class="font-medium">Fine Collection</span>
+        </a>
         <a href="<?= APP_URL ?>transactions/advisor_txns.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'advisor_txns.php' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-receipt text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
             <span class="font-medium">Revenue Stream</span>

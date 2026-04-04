@@ -139,4 +139,61 @@ while($m_acc = mysqli_fetch_assoc($maturing_accs)) {
 logCron("Marked $mat_count accounts as matured.");
 
 logCron("DAILY PROCESSOR COMPLETED SUCCESSFULLY.");
+
+// --- NESTED SECTION: ADVISOR WALLET INTEREST ENGINE ---
+
+// 4. Daily Advisor Wallet Interest Accrual
+logCron("Processing Advisor Wallet Accruals...");
+$wallet_rate = (float)getSetting($conn, 'wallet_interest_rate') ?: 4.0;
+$today = date('Y-m-d');
+
+$sql_wallets = "SELECT id, wallet_balance, wallet_interest_accrued, wallet_interest_last_calculated FROM users WHERE role = 'advisor' AND wallet_balance > 0";
+$wallet_res = mysqli_query($conn, $sql_wallets);
+$wallet_acc_count = 0;
+
+while($u = mysqli_fetch_assoc($wallet_res)) {
+    $last_calc = $u['wallet_interest_last_calculated'] ?: $today;
+    $days_passed = (strtotime($today) - strtotime($last_calc)) / (60 * 60 * 24);
+    
+    if($days_passed >= 1) {
+        $daily_yield = ($u['wallet_balance'] * $wallet_rate * $days_passed) / 36500;
+        $daily_yield = round($daily_yield, 4); // high precision for daily microscopic interest
+        
+        if($daily_yield > 0) {
+            mysqli_query($conn, "UPDATE users SET wallet_interest_accrued = wallet_interest_accrued + $daily_yield, wallet_interest_last_calculated = '$today' WHERE id = " . $u['id']);
+        } else {
+            mysqli_query($conn, "UPDATE users SET wallet_interest_last_calculated = '$today' WHERE id = " . $u['id']);
+        }
+        $wallet_acc_count++;
+    }
+}
+logCron("Accrued daily wallet interest for $wallet_acc_count Advisors.");
+
+// 5. Monthly Advisor Wallet Interest Posting
+// Runs on the 1st of every month
+if(date('d') == '01') {
+    logCron("MONTHLY START DETECTED: Posting wallet interest credits...");
+    $credit_res = mysqli_query($conn, "SELECT id, wallet_interest_accrued, wallet_balance FROM users WHERE role = 'advisor' AND wallet_interest_accrued >= 0.01");
+    $credit_count = 0;
+    
+    while($u_cred = mysqli_fetch_assoc($credit_res)) {
+        $u_id = $u_cred['id'];
+        $int_amount = round($u_cred['wallet_interest_accrued'], 2);
+        $final_bal = $u_cred['wallet_balance'] + $int_amount;
+        
+        mysqli_query($conn, "START TRANSACTION");
+        // 1. Update User Balance
+        mysqli_query($conn, "UPDATE users SET wallet_balance = $final_bal, wallet_interest_accrued = 0 WHERE id = $u_id");
+        
+        // 2. Insert Wallet Transaction
+        $wallet_txn_id = 'INT-W-' . time() . rand(10,99) . $u_id;
+        $sql_w_txn = "INSERT INTO wallet_transactions (user_id, transaction_type, amount, balance_after, reference_id, description, created_by) 
+                      VALUES ($u_id, 'Interest', $int_amount, $final_bal, '$wallet_txn_id', 'Monthly Wallet Interest Credit', 1)";
+        mysqli_query($conn, $sql_w_txn);
+        
+        mysqli_query($conn, "COMMIT");
+        $credit_count++;
+    }
+    logCron("Successfully credited interest to $credit_count Advisor Wallets.");
+}
 ?>

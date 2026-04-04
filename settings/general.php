@@ -21,6 +21,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_general'])) {
         'prefix_rd' => sanitize($conn, $_POST['prefix_rd']),
         'prefix_mis' => sanitize($conn, $_POST['prefix_mis']),
         'prefix_dd' => sanitize($conn, $_POST['prefix_dd']),
+        'loan_late_fine_fixed' => (float)$_POST['loan_late_fine_fixed'],
+        'loan_grace_days' => (int)$_POST['loan_grace_days'],
+        'wallet_interest_rate' => (float)$_POST['wallet_interest_rate'],
     ];
     
     // Handle File Uploads
@@ -132,6 +135,30 @@ require_once '../includes/sidebar.php';
                                 <input type="file" name="bank_stamp" accept="image/png, image/jpeg" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
                                 <p class="text-xs text-gray-400 mt-2">Recommended: Transparent PNG, 300x300px, Blue/Purple ink tone.</p>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Loan Delinquency Settings -->
+                    <div class="bg-rose-50 p-6 rounded-2xl border border-rose-100">
+                        <h3 class="text-lg font-bold text-rose-800 flex items-center gap-2 mb-4">
+                            <i class="ph ph-hand-coins"></i> Loan Late Fine Policy
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-rose-700 mb-1">Standard Fixed Late Fine (₹)</label>
+                                <input type="number" step="0.01" name="loan_late_fine_fixed" value="<?= htmlspecialchars(getSetting($conn, 'loan_late_fine_fixed')) ?>" class="w-full px-4 py-2 border border-rose-200 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none">
+                                <p class="text-[10px] text-rose-500 mt-1 uppercase font-bold tracking-wider">Charged Once Per Missed Month</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-rose-700 mb-1">Grace Period (Days)</label>
+                                <input type="number" name="loan_grace_days" value="<?= htmlspecialchars(getSetting($conn, 'loan_grace_days')) ?>" class="w-full px-4 py-2 border border-rose-200 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none">
+                                <p class="text-[10px] text-rose-500 mt-1 uppercase font-bold tracking-wider">Days Before Fine is Triggered</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-rose-200">
+                             <label class="block text-sm font-medium text-rose-700 mb-1">Monthly Wallet Yield / Interest (%)</label>
+                             <input type="number" step="0.01" name="wallet_interest_rate" value="<?= htmlspecialchars(getSetting($conn, 'wallet_interest_rate')) ?>" class="w-full px-4 py-2 border border-rose-200 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none">
+                             <p class="text-[10px] text-rose-500 mt-1 uppercase font-bold tracking-wider">Credited automatically on the 1st of every month</p>
                         </div>
                     </div>
 

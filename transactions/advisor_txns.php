@@ -82,7 +82,12 @@ require_once '../includes/sidebar.php';
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider <?= $t['transaction_type'] == 'Recharge' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' ?>">
+                            <?php
+                                $badge_class = 'bg-rose-100 text-rose-700';
+                                if($t['transaction_type'] == 'Recharge' || $t['transaction_type'] == 'Interest') $badge_class = 'bg-emerald-100 text-emerald-700';
+                                if($t['transaction_type'] == 'Interest') $badge_class = 'bg-indigo-100 text-indigo-700';
+                            ?>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider <?= $badge_class ?>">
                                 <?= strtoupper($t['transaction_type']) ?>
                             </span>
                         </td>

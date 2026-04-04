@@ -270,8 +270,30 @@ require_once '../includes/sidebar.php';
 </div>
 <style>
     @media print {
-        .page-break-before { page-break-before: always; }
+        body { background: white; color: black; font-size: 12pt; }
+        .no-print, aside, header, .sidebar-collapsed aside { display: none !important; }
+        .max-w-5xl { max-width: 100% !important; width: 100% !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
+        .p-8 { padding: 0.5in !important; }
+        .bg-gray-50 { background: white !important; border-bottom: 2px solid #333 !important; }
+        .bg-indigo-50 { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
+        .page-break-before { page-break-before: always; margin-top: 0.5in; }
+        .print-only { display: block !important; }
+        table { border-collapse: collapse !important; }
+        th { border-bottom: 2px solid #000 !important; color: black !important; }
+        td { border-bottom: 1px solid #eee !important; }
+        .authorized-sign { margin-top: 50px; text-align: right; }
     }
 </style>
 
+<div class="authorized-sign hidden print:block pr-8">
+    <div class="inline-block text-center">
+        <?php $stamp = getSetting($conn, 'bank_stamp'); if($stamp && file_exists('../'.$stamp)): ?>
+            <img src="../<?= $stamp ?>" class="h-24 mx-auto mb-2 opacity-80" alt="Authorized Seal">
+        <?php else: ?>
+            <div class="h-24 w-40 border border-dashed border-gray-300 mx-auto mb-2 rounded flex items-center justify-center text-[10px] text-gray-300 italic">Affix Seal Here</div>
+        <?php endif; ?>
+        <p class="text-sm font-bold text-gray-800">Authorized Signatory</p>
+        <p class="text-[10px] text-gray-400 uppercase tracking-widest"><?= htmlspecialchars(getSetting($conn, 'bank_name')) ?></p>
+    </div>
+</div>
 <?php require_once '../includes/footer.php'; ?>

@@ -165,6 +165,12 @@ if($account_id > 0) {
                                 WHERE a.id = $account_id");
     if(mysqli_num_rows($res) > 0) {
         $selected_acc = mysqli_fetch_assoc($res);
+        // Recalculate fines if it's a loan
+        if($selected_acc['account_type'] == 'Loan') {
+            $calc_date = isset($_GET['transaction_date']) ? sanitize($conn, $_GET['transaction_date']) : date('Y-m-d');
+            calculateAndUpdateFines($conn, $account_id, $calc_date);
+        }
+        
         // Fetch Loan Schedule Overdues if Loan Account
         if($selected_acc['account_type'] == 'Loan') {
             $l_res = mysqli_query($conn, "SELECT COUNT(id) as overdue_count, SUM(emi_amount) as total_overdue_emi, SUM(fine_amount) as total_fine 
