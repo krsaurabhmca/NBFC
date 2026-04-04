@@ -73,10 +73,22 @@ require_once '../includes/sidebar.php';
             <p class="text-sm text-gray-600 bg-gray-200 px-2 py-0.5 rounded inline-block mt-1"><?= $acc['account_type'] ?></p>
         </div>
         <div class="text-right border-l pl-6 border-gray-200">
-            <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Current Balance</p>
+            <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Current Balance / Total Liability</p>
             <p class="text-2xl font-bold <?= $acc['current_balance'] < 0 ? 'text-rose-600' : 'text-emerald-600' ?> tracking-tight">
-                <?= formatCurrency(abs($acc['current_balance'])) ?>
-                <?= $acc['current_balance'] < 0 ? '<span class="text-xs px-1 bg-red-100 text-red-800 rounded mb-1 inline-block align-top">Dr</span>' : '' ?>
+                <?php 
+                    $display_bal = abs($acc['current_balance']);
+                    $is_loan_debt = ($acc['account_type'] == 'Loan' || $acc['current_balance'] < 0);
+                    
+                    if($acc['account_type'] == 'Loan') {
+                        // For Loans, calculate Total Outstanding (Principal + Interest + Fines)
+                        $liability_res = mysqli_query($conn, "SELECT SUM(emi_amount + fine_amount) as total FROM loan_schedules WHERE account_id = $id AND status IN ('Pending', 'Overdue')");
+                        $liability = mysqli_fetch_assoc($liability_res)['total'] ?? 0;
+                        $display_bal = $liability;
+                    }
+                    
+                    echo formatCurrency($display_bal);
+                ?>
+                <?= $is_loan_debt ? '<span class="text-xs px-1 bg-red-100 text-red-800 rounded mb-1 inline-block align-top">Dr</span>' : '' ?>
             </p>
         </div>
     </div>
@@ -127,7 +139,11 @@ require_once '../includes/sidebar.php';
                         ?>
                         <tr class="hover:bg-gray-50">
                             <td class="py-3 text-gray-600"><?= date('d M Y, h:i A', strtotime($t['transaction_date'])) ?></td>
-                            <td class="py-3 font-mono text-xs text-gray-500"><?= $t['transaction_id'] ?></td>
+                            <td class="py-3 font-mono text-xs">
+                                <a href="../transactions/receipt.php?id=<?= $t['id'] ?>&duplicate=1" target="_blank" class="text-indigo-600 hover:text-indigo-800 font-bold underline decoration-dotted underline-offset-4" title="Print Duplicate Receipt">
+                                    <?= $t['transaction_id'] ?>
+                                </a>
+                            </td>
                             <td class="py-3">
                                 <span class="block font-medium text-gray-800"><?= htmlspecialchars($t['description']) ?></span>
                                 <span class="text-xs text-gray-500"><?= $t['transaction_type'] ?></span>

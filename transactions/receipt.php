@@ -52,9 +52,16 @@ if(!$txn) {
         </div>
 
         <div class="px-8 py-6">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-6 relative">
                 <h3 class="font-bold text-gray-800 text-lg uppercase tracking-wider">Transaction Receipt</h3>
-                <span class="bg-gray-100 text-gray-800 font-mono text-xs px-2 py-1 rounded font-bold border border-gray-200"><?= $txn['transaction_id'] ?></span>
+                <?php if(isset($_GET['duplicate'])): ?>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08] -rotate-12 z-0">
+                        <span class="text-6xl font-black text-rose-600 border-8 border-rose-600 px-4 py-2 rounded-2xl tracking-widest whitespace-nowrap">DUPLICATE</span>
+                    </div>
+                    <span class="bg-rose-50 text-rose-600 font-bold text-[10px] px-2 py-1 rounded uppercase tracking-widest border border-rose-200">Duplicate Copy</span>
+                <?php else: ?>
+                    <span class="bg-gray-100 text-gray-800 font-mono text-xs px-2 py-1 rounded font-bold border border-gray-200"><?= $txn['transaction_id'] ?></span>
+                <?php endif; ?>
             </div>
 
             <div class="space-y-4 text-sm mt-4">
