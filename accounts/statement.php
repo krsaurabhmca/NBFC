@@ -270,17 +270,21 @@ require_once '../includes/sidebar.php';
 </div>
 <style>
     @media print {
+        /* Reset containers to allow full page printing */
+        html, body { height: auto !important; overflow: visible !important; }
+        .flex-1, .flex-col, main { display: block !important; overflow: visible !important; height: auto !important; }
+        aside, header, footer, .no-print { display: none !important; }
+        
         body { background: white; color: black; font-size: 12pt; }
-        .no-print, aside, header, .sidebar-collapsed aside { display: none !important; }
         .max-w-5xl { max-width: 100% !important; width: 100% !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
         .p-8 { padding: 0.5in !important; }
         .bg-gray-50 { background: white !important; border-bottom: 2px solid #333 !important; }
         .bg-indigo-50 { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
         .page-break-before { page-break-before: always; margin-top: 0.5in; }
         .print-only { display: block !important; }
-        table { border-collapse: collapse !important; }
-        th { border-bottom: 2px solid #000 !important; color: black !important; }
-        td { border-bottom: 1px solid #eee !important; }
+        table { border-collapse: collapse !important; width: 100% !important; }
+        th { border-bottom: 2px solid #000 !important; color: black !important; padding: 10px 5px !important; }
+        td { border-bottom: 1px solid #eee !important; padding: 10px 5px !important; }
         .authorized-sign { margin-top: 50px; text-align: right; }
     }
 </style>
