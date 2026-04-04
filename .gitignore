@@ -1,0 +1,5 @@
+# Ignore sensitive credentials
+includes/db_credentials.php
+/uploads
+.env
+.antigravity/

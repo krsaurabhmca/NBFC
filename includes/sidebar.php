@@ -118,8 +118,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <?php 
                 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
                 $parts = explode('/', trim($path, '/'));
-                if(count($parts) > 1 && $parts[1] != 'index.php') echo ucfirst($parts[1]) . ' / ';
-                echo ucwords(str_replace(['.php', '_'], ['', ' '], basename($_SERVER['PHP_SELF'])));
+                if(count($parts) > 1 && !in_array(end($parts), ['index.php', ''])) {
+                     $dir = $parts[count($parts)-2];
+                     if($dir != 'nbfc') echo ucfirst($dir) . ' / ';
+                }
+                $file = basename($_SERVER['PHP_SELF']);
+                if($file == 'index.php') {
+                    echo 'Dashboard';
+                } else {
+                    echo ucwords(str_replace(['.php', '_'], ['', ' '], $file));
+                }
                 ?>
             </h2>
         </div>

@@ -4,20 +4,22 @@ if(session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+// Environment Detect
 $is_local = ($_SERVER['HTTP_HOST'] == 'localhost' || $_SERVER['HTTP_HOST'] == '127.0.0.1');
 
-if ($is_local) {
-    $host = 'localhost';
-    $user = 'root';
-    $pass = '';
-    $dbname = 'nbfc';
-    define('APP_URL', 'http://localhost/nbfc/');
+// Sensitive configuration isolation
+$config_file = __DIR__ . '/db_credentials.php';
+if (file_exists($config_file)) {
+    require_once $config_file;
 } else {
+    // Local defaults (Development Fallbacks)
     $host = 'localhost';
-    $user = 'u443617320_jnbank';
-    $pass = '@Bank_2001';
-    $dbname = 'u443617320_jnbank';
-    define('APP_URL', 'https://jn.morg.in/');
+    $user = ($is_local) ? 'root' : ''; 
+    $pass = ($is_local) ? '' : '';
+    $dbname = ($is_local) ? 'nbfc' : '';
+    if (!defined('APP_URL')) {
+        define('APP_URL', ($is_local) ? 'http://localhost/nbfc/' : '');
+    }
 }
 
 $conn = mysqli_connect($host, $user, $pass, $dbname);
