@@ -35,8 +35,11 @@ require_once '../includes/sidebar.php';
         </div>
         <div class="flex gap-2">
             <a href="view.php" class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Back</a>
-            <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition flex items-center gap-1">
-                <i class="ph ph-printer"></i> Print Statement
+            <a href="pdf_statement.php?id=<?= $id ?>" target="_blank" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 transition flex items-center gap-1 shadow-md">
+                <i class="ph ph-file-pdf"></i> Download Official PDF
+            </a>
+            <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition flex items-center gap-1 shadow-md">
+                <i class="ph ph-printer"></i> Standard Print
             </button>
         </div>
     </div>

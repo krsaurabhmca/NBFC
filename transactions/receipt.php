@@ -4,6 +4,7 @@ checkAuth();
 require_once '../includes/functions.php';
 
 $txn_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$duplicate = isset($_GET['duplicate']) ? true : false;
 
 $sql = "SELECT t.*, a.account_no, a.account_type, m.first_name, m.last_name, m.member_no, m.phone, u.name as staff_name 
         FROM transactions t 
@@ -154,9 +155,14 @@ if(!$txn) {
     </div>
 
     <div class="max-w-[450px] mx-auto mt-6 flex gap-4 no-print">
-        <button onclick="window.print()" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-lg font-medium transition-colors shadow-lg flex items-center justify-center gap-2">
-            <i class="ph ph-printer text-xl"></i> Print Receipt
-        </button>
+        <div class="flex gap-2">
+            <a href="receipt_compact.php?id=<?= $txn_id ?><?= $duplicate ? '&duplicate=1' : '' ?>" target="_blank" class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-100 transition flex items-center gap-1">
+                <i class="ph ph-article"></i> Compact Print
+            </a>
+            <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition flex items-center gap-1">
+                <i class="ph ph-printer"></i> Standard Print
+            </button>
+        </div>
         <a href="process.php" class="flex-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 py-3 rounded-lg font-medium transition-colors shadow-sm flex items-center justify-center gap-2 text-center">
             <i class="ph ph-arrow-left text-xl"></i> Back to Process
         </a>

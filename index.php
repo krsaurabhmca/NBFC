@@ -7,34 +7,64 @@ require_once 'includes/functions.php';
 require_once 'includes/header.php';
 require_once 'includes/sidebar.php';
 
+// Handle Date Filtering
+$period = isset($_GET['period']) ? sanitize($conn, $_GET['period']) : 'today';
+$from_date = isset($_GET['from_date']) ? sanitize($conn, $_GET['from_date']) : '';
+$to_date = isset($_GET['to_date']) ? sanitize($conn, $_GET['to_date']) : '';
+
+$date_where = "DATE(transaction_date) = CURDATE()";
+$member_date_where = "DATE(created_at) = CURDATE()";
+
+if ($period == 'week') {
+    $date_where = "DATE(transaction_date) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+    $member_date_where = "DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+} elseif ($period == 'month') {
+    $date_where = "DATE(transaction_date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+    $member_date_where = "DATE(created_at) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+} elseif ($period == 'year') {
+    $date_where = "DATE(transaction_date) >= DATE_FORMAT(CURDATE(), '%Y-01-01')";
+    $member_date_where = "DATE(created_at) >= DATE_FORMAT(CURDATE(), '%Y-01-01')";
+} elseif ($period == 'all') {
+    $date_where = "1=1";
+    $member_date_where = "1=1";
+} elseif ($period == 'custom' && $from_date && $to_date) {
+    $date_where = "DATE(transaction_date) BETWEEN '$from_date' AND '$to_date'";
+    $member_date_where = "DATE(created_at) BETWEEN '$from_date' AND '$to_date'";
+}
+
 // Fetch summary stats
 $stats = [
     'total_members' => 0,
     'total_deposits' => 0,
     'total_loans' => 0,
-    'active_accounts' => 0
+    'active_accounts' => 0,
+    'new_members' => 0
 ];
 
-// Members
+// Members (Total Active)
 $res = mysqli_query($conn, "SELECT COUNT(*) as c FROM members WHERE status = 'active'");
 $stats['total_members'] = mysqli_fetch_assoc($res)['c'];
 
-// Active Accounts
+// New Members in Period
+$res = mysqli_query($conn, "SELECT COUNT(*) as c FROM members WHERE $member_date_where");
+$stats['new_members'] = mysqli_fetch_assoc($res)['c'];
+
+// Active Accounts (Total)
 $res = mysqli_query($conn, "SELECT COUNT(*) as c FROM accounts WHERE status = 'active'");
 $stats['active_accounts'] = mysqli_fetch_assoc($res)['c'];
 
-// Deposits (Sum of balance for Savings, FD, RD, MIS, DD)
+// Cumulative Deposits
 $res = mysqli_query($conn, "SELECT SUM(current_balance) as s FROM accounts WHERE account_type != 'Loan' AND status = 'active'");
 $stats['total_deposits'] = mysqli_fetch_assoc($res)['s'] ?? 0;
 
-// Loans Disbursed (Sum of principal amount for Loans)
+// Cumulative Loans
 $res = mysqli_query($conn, "SELECT SUM(principal_amount) as s FROM accounts WHERE account_type = 'Loan' AND status IN ('active','defaulted')");
 $stats['total_loans'] = mysqli_fetch_assoc($res)['s'] ?? 0;
 
-// Recent Transactions
-$txn_where = "";
+// Transactions in Period
+$txn_where = " WHERE $date_where";
 if($_SESSION['role'] == 'advisor') {
-    $txn_where = " WHERE t.created_by = {$_SESSION['user_id']}";
+    $txn_where .= " AND t.created_by = {$_SESSION['user_id']}";
 }
 $txn_sql = "SELECT t.*, a.account_no, m.first_name, m.last_name 
             FROM transactions t 
@@ -44,37 +74,53 @@ $txn_sql = "SELECT t.*, a.account_no, m.first_name, m.last_name
             ORDER BY t.id DESC LIMIT 5";
 $recent_txns = mysqli_query($conn, $txn_sql);
 
-// Current Date Totals (Debt/Asset)
-$today = date('Y-m-d');
-$today_deposits = 0; // Asset/Cash In (Deposits, EMIs paid)
-$today_debts = 0; // Debt/Cash Out (Withdrawals, Loan Disbursals)
+// Period Totals
+$period_deposits = 0; 
+$period_debts = 0; 
 
-$res_today = mysqli_query($conn, "SELECT transaction_type, SUM(amount) as s FROM transactions WHERE DATE(transaction_date) = '$today' GROUP BY transaction_type");
-while($rt = mysqli_fetch_assoc($res_today)) {
-    if(in_array($rt['transaction_type'], ['Deposit', 'EMI'])) {
-        $today_deposits += $rt['s'];
-    } elseif(in_array($rt['transaction_type'], ['Withdrawal', 'Account-Open'])) { // Assuming Account-Open for Loan is outflow (handled generically here, but conceptually correct for simple model)
-        $today_debts += $rt['s']; 
+$res_period = mysqli_query($conn, "SELECT t.transaction_type, SUM(t.amount) as s 
+                                   FROM transactions t 
+                                   JOIN accounts a ON t.account_id = a.id
+                                   WHERE $date_where GROUP BY t.transaction_type");
+while($rt = mysqli_fetch_assoc($res_period)) {
+    if(in_array($rt['transaction_type'], ['Deposit', 'EMI', 'Interest'])) {
+        $period_deposits += $rt['s'];
+    } elseif(in_array($rt['transaction_type'], ['Withdrawal', 'Account-Open'])) {
+        $period_debts += $rt['s']; 
     }
 }
 
-// Adjust account-open specifically for loans
-$res_loan_out = mysqli_query($conn, "SELECT SUM(t.amount) as s FROM transactions t JOIN accounts a ON t.account_id = a.id WHERE a.account_type = 'Loan' AND t.transaction_type = 'Account-Open' AND DATE(t.transaction_date) = '$today'");
-$loan_out = mysqli_fetch_assoc($res_loan_out)['s'] ?? 0;
-$today_debts = $loan_out + (mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) as s FROM transactions WHERE transaction_type = 'Withdrawal' AND DATE(transaction_date) = '$today'"))['s'] ?? 0);
-
-// Advisor Specific Stats
+// Advisor Performance in Period
 $advisor_wallet = 0;
-$advisor_today_collection = 0;
+$advisor_period_collection = 0;
 if($_SESSION['role'] == 'advisor') {
     $adv_id = $_SESSION['user_id'];
     $adv_res = mysqli_query($conn, "SELECT wallet_balance FROM users WHERE id = $adv_id");
     $advisor_wallet = mysqli_fetch_assoc($adv_res)['wallet_balance'] ?? 0;
     
-    $adv_coll_res = mysqli_query($conn, "SELECT SUM(ABS(amount)) as s FROM wallet_transactions WHERE user_id = $adv_id AND transaction_type = 'Collection' AND DATE(transaction_date) = '$today'");
-    $advisor_today_collection = mysqli_fetch_assoc($adv_coll_res)['s'] ?? 0;
+    $adv_coll_res = mysqli_query($conn, "SELECT SUM(ABS(amount)) as s FROM wallet_transactions WHERE user_id = $adv_id AND transaction_type = 'Collection' AND $date_where");
+    $advisor_period_collection = mysqli_fetch_assoc($adv_coll_res)['s'] ?? 0;
 }
 ?>
+
+<div class="mb-8 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+        <?php foreach(['today' => 'Today', 'week' => '7 Days', 'month' => 'This Month', 'year' => 'This Year', 'all' => 'All Time'] as $key => $label): ?>
+            <a href="?period=<?= $key ?>" class="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all <?= $period == $key ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-50 text-gray-400 hover:bg-gray-100' ?>">
+                <?= $label ?>
+            </a>
+        <?php endforeach; ?>
+    </div>
+    <form action="" method="GET" class="flex items-center gap-2">
+        <input type="hidden" name="period" value="custom">
+        <input type="date" name="from_date" value="<?= $from_date ?>" class="px-3 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500">
+        <span class="text-gray-300 text-xs font-bold">TO</span>
+        <input type="date" name="to_date" value="<?= $to_date ?>" class="px-3 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500">
+        <button type="submit" class="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md">
+            <i class="ph ph-magnifying-glass font-bold"></i>
+        </button>
+    </form>
+</div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Stat Cards (Enhanced) -->
@@ -83,7 +129,7 @@ if($_SESSION['role'] == 'advisor') {
             <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
                 <i class="ph ph-users-three"></i>
             </div>
-            <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-widest">+12% New</span>
+            <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-widest">+<?= $stats['new_members'] ?> New</span>
         </div>
         <div>
             <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Membership</p>
@@ -142,10 +188,10 @@ if($_SESSION['role'] == 'advisor') {
         <div class="relative z-10">
             <div class="flex items-center gap-2 mb-4">
                 <div class="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                <p class="text-emerald-100 text-[10px] font-black uppercase tracking-[0.2em] opacity-80"><?= $_SESSION['role'] == 'admin' ? "Live System Inflow (Today)" : "Your Collection Target" ?></p>
+                <p class="text-emerald-100 text-[10px] font-black uppercase tracking-[0.2em] opacity-80"><?= $_SESSION['role'] == 'admin' ? "Live System Inflow (".ucfirst($period).")" : "Your Collection Target" ?></p>
             </div>
-            <h3 class="text-4xl font-black tracking-tight mb-2"><?= formatCurrency($_SESSION['role'] == 'admin' ? $today_deposits : $advisor_today_collection) ?></h3>
-            <p class="text-emerald-100/60 text-xs font-medium">Total collections processed through verified channels today.</p>
+            <h3 class="text-4xl font-black tracking-tight mb-2"><?= formatCurrency($_SESSION['role'] == 'admin' ? $period_deposits : $advisor_period_collection) ?></h3>
+            <p class="text-emerald-100/60 text-xs font-medium">Total collections processed through verified channels for this timeframe.</p>
         </div>
         <i class="ph ph-arrow-circle-down-right text-[120px] text-white/10 absolute -right-4 -bottom-4 group-hover:scale-110 transition-transform duration-500"></i>
     </div>
@@ -155,10 +201,10 @@ if($_SESSION['role'] == 'advisor') {
         <div class="relative z-10">
             <div class="flex items-center gap-2 mb-4">
                 <div class="w-2 h-2 bg-rose-400 rounded-full"></div>
-                <p class="text-indigo-200 text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Outward Disbursement (Today)</p>
+                <p class="text-indigo-200 text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Outward Disbursement (<?= ucfirst($period) ?>)</p>
             </div>
-            <h3 class="text-4xl font-black tracking-tight mb-2"><?= formatCurrency($today_debts) ?></h3>
-            <p class="text-indigo-200/60 text-xs font-medium">Total withdrawals and loan disbursals settled in current session.</p>
+            <h3 class="text-4xl font-black tracking-tight mb-2"><?= formatCurrency($period_debts) ?></h3>
+            <p class="text-indigo-200/60 text-xs font-medium">Total withdrawals and loan disbursals settled in current timeframe.</p>
         </div>
         <i class="ph ph-receipt text-[120px] text-white/10 absolute -right-4 -bottom-4 group-hover:scale-110 transition-transform duration-500"></i>
     </div>

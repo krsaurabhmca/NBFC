@@ -18,39 +18,39 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
         <?php if($_SESSION['role'] == 'admin'): ?>
         <div class="pt-5 pb-1 px-3">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Member Management</p>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Customer / Member</p>
         </div>
         <a href="<?= APP_URL ?>members/add.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'add.php' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-user-plus text-xl text-emerald-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">New Membership</span>
+            <span class="font-medium">Add New Member</span>
         </a>
         <a href="<?= APP_URL ?>members/list.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'list.php' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-users text-xl text-emerald-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Member Directory</span>
+            <span class="font-medium">Manage Members</span>
         </a>
 
         <div class="pt-5 pb-1 px-3">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Core Banking</p>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Banking Core</p>
         </div>
         <a href="<?= APP_URL ?>accounts/open.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'open.php' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-folder-plus text-xl text-blue-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Open Account</span>
+            <span class="font-medium">Open New A/c</span>
         </a>
         <a href="<?= APP_URL ?>accounts/view.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'view.php' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-folders text-xl text-blue-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Account Ledger</span>
+            <span class="font-medium">Detailed Ledger</span>
         </a>
         <a href="<?= APP_URL ?>accounts/closure.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'closure.php' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-lock-key-open text-xl text-blue-400 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Account Closure</span>
+            <span class="font-medium">Close A/c</span>
         </a>
 
         <div class="pt-5 pb-1 px-3">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Revenue & TXN</p>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Daily Work</p>
         </div>
         <a href="<?= APP_URL ?>transactions/process.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'process.php' ? 'bg-rose-600/10 text-rose-400 border border-rose-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
-            <i class="ph ph-arrows-left-right text-xl text-rose-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Process Entry</span>
+            <i class="ph ph-receipt text-xl text-rose-500 group-hover:scale-110 transition-transform"></i> 
+            <span class="font-medium">Receive / Pay</span>
         </a>
         <?php endif; ?>
 
@@ -69,43 +69,43 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <?php endif; ?>
 
         <div class="pt-5 pb-1 px-3">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Analytics & Intelligence</p>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Audit & Reports</p>
         </div>
         <?php if($_SESSION['role'] == 'admin'): ?>
         <a href="<?= APP_URL ?>reports/index.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'index.php' && strpos($_SERVER['REQUEST_URI'], 'reports') !== false ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-chart-line-up text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Filing Reports</span>
+            <span class="font-medium">Daily Collections</span>
         </a>
         <a href="<?= APP_URL ?>reports/fine_collection.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'fine_collection.php' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-coins text-xl text-amber-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Fine Collection</span>
+            <span class="font-medium">Fine Income</span>
         </a>
         <a href="<?= APP_URL ?>transactions/advisor_txns.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'advisor_txns.php' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
-            <i class="ph ph-receipt text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Revenue Stream</span>
+            <i class="ph ph-shield text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
+            <span class="font-medium">Field Wallet Logs</span>
         </a>
         <?php endif; ?>
         
         <div class="pt-5 pb-1 px-3">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">System Control</p>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Setup Control</p>
         </div>
         <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
         <a href="<?= APP_URL ?>users/index.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'index.php' && strpos($_SERVER['REQUEST_URI'], 'users') !== false ? 'bg-violet-600/10 text-violet-400 border border-violet-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
-            <i class="ph ph-shield-check text-xl text-violet-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Staff & RBAC</span>
+            <i class="ph ph-user-gear text-xl text-violet-500 group-hover:scale-110 transition-transform"></i> 
+            <span class="font-medium">Staff Manager</span>
         </a>
         <a href="<?= APP_URL ?>settings/general.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= strpos($_SERVER['REQUEST_URI'], 'settings') !== false ? 'bg-violet-600/10 text-violet-400 border border-violet-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-gear text-xl text-violet-500 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">System Settings</span>
+            <span class="font-medium">Master Setup</span>
         </a>
         <a href="<?= APP_URL ?>reports/system_logs.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'system_logs.php' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
-            <i class="ph ph-mask-happy text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Audit Activity Logs</span>
+            <i class="ph ph-article text-xl text-indigo-400 group-hover:scale-110 transition-transform"></i> 
+            <span class="font-medium">Action Logs</span>
         </a>
         <?php endif; ?>
         <a href="<?= APP_URL ?>help/calculations.php" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?= $current_page == 'calculations.php' ? 'bg-sky-600/10 text-sky-400 border border-sky-500/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
-            <i class="ph ph-calculator text-xl text-sky-400 group-hover:scale-110 transition-transform"></i> 
-            <span class="font-medium">Calculation Docs</span>
+            <i class="ph ph-lightbulb text-xl text-sky-400 group-hover:scale-110 transition-transform"></i> 
+            <span class="font-medium">Logic Help</span>
         </a>
     </nav>
     
