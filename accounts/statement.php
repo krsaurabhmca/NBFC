@@ -221,7 +221,7 @@ require_once '../includes/sidebar.php';
                     $paid_total = mysqli_fetch_assoc($paid_res)['tot'] ?? 0;
                     $deposit_amt = $acc['installment_amount'];
                     
-                    for($i = 1; $i <= $acc['tenure_months']; $i++):
+                    for($i = 0; $i < $acc['tenure_months']; $i++):
                         $due_date = date('Y-m-d', strtotime($acc['opening_date'] . " + $i months"));
                         
                         if($paid_total >= $deposit_amt) {
@@ -237,7 +237,7 @@ require_once '../includes/sidebar.php';
                         }
                     ?>
                     <tr class="hover:bg-gray-50/50">
-                        <td class="py-3 px-4 text-gray-600 font-mono">#<?= str_pad($i, 2, '0', STR_PAD_LEFT) ?></td>
+                        <td class="py-3 px-4 text-gray-600 font-mono">#<?= str_pad($i + 1, 2, '0', STR_PAD_LEFT) ?></td>
                         <td class="py-3 px-4 text-gray-800 font-medium"><?= date('d M Y', strtotime($due_date)) ?></td>
                         <td class="py-3 px-4 text-right font-medium text-gray-800"><?= formatCurrency($deposit_amt) ?></td>
                         <td class="py-3 px-4 text-right">
