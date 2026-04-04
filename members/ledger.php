@@ -43,9 +43,74 @@ require_once '../includes/sidebar.php';
             </h1>
             <p class="text-gray-500 text-sm mt-1">Complete portfolio and history for <?= htmlspecialchars($member['first_name'] . ' ' . $member['last_name']) ?></p>
         </div>
-        <a href="../members/list.php" class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
-            <i class="ph ph-arrow-left mr-1"></i> Directory
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="edit.php?id=<?= $member_id ?>" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1.5">
+                <i class="ph ph-pencil-simple text-lg"></i> Edit Profile
+            </a>
+            <a href="../members/list.php" class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                <i class="ph ph-arrow-left mr-1"></i> Directory
+            </a>
+        </div>
+    </div>
+
+    <!-- KYC & Profile Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 p-6">
+            <div class="md:col-span-1 flex flex-col items-center bg-gray-50/30 py-6 rounded-2xl border border-gray-100/50">
+                <?php if($member['photo_path']): ?>
+                    <img src="../<?= htmlspecialchars($member['photo_path']) ?>" class="w-32 h-32 rounded-xl object-cover shadow-md border-4 border-white ring-1 ring-gray-100 mb-3 hover:scale-105 transition-transform duration-300">
+                <?php else: ?>
+                    <div class="w-32 h-32 rounded-xl bg-indigo-50 text-indigo-400 flex items-center justify-center text-4xl font-bold border-2 border-dashed border-indigo-100 mb-3">
+                        <?= strtoupper(substr($member['first_name'], 0, 1)) ?>
+                    </div>
+                <?php endif; ?>
+                <span class="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase rounded-full tracking-wider shadow-sm">Member Photo</span>
+            </div>
+            
+            <div class="md:col-span-2 space-y-4 py-2">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Full Customer Name</p>
+                        <p class="font-bold text-gray-800 text-xl tracking-tight"><?= htmlspecialchars($member['first_name'] . ' ' . $member['last_name']) ?></p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Official Member ID</p>
+                        <p class="font-bold text-indigo-600 font-mono bg-indigo-50 px-2 py-0.5 rounded w-max"><?= htmlspecialchars($member['member_no']) ?></p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 border-t border-gray-50 pt-4">
+                    <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Aadhar Identification</p>
+                        <div class="flex items-center gap-1.5 font-medium text-gray-700 font-mono">
+                            <i class="ph ph-shield-check text-emerald-500"></i>
+                            <?= htmlspecialchars($member['aadhar_no']) ?>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Contact Number</p>
+                        <p class="font-medium text-gray-700 flex items-center gap-1.5"><i class="ph ph-phone text-indigo-500"></i> <?= htmlspecialchars($member['phone']) ?></p>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Registered Address</p>
+                    <p class="text-sm text-gray-600 leading-relaxed italic"><i class="ph ph-map-pin text-rose-500 mr-0.5"></i> <?= htmlspecialchars($member['address']) ?></p>
+                </div>
+            </div>
+
+            <div class="md:col-span-1 flex flex-col items-center justify-center bg-slate-50/80 rounded-2xl p-5 border border-slate-100 relative group">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4 absolute top-4 left-4">Authenticated Signature</p>
+                <?php if($member['signature_path']): ?>
+                    <img src="../<?= htmlspecialchars($member['signature_path']) ?>" class="max-h-24 w-auto grayscale contrast-125 mb-2 hover:grayscale-0 transition-all opacity-80 hover:opacity-100 drop-shadow-sm">
+                <?php else: ?>
+                    <div class="h-24 w-full flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg text-slate-300">
+                        <i class="ph ph-signature text-3xl"></i>
+                    </div>
+                <?php endif; ?>
+                <div class="mt-2 text-[10px] text-slate-400 font-medium italic flex items-center gap-1">
+                    <i class="ph ph-fingerprint text-emerald-500"></i> Digital KYC Record 
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Quick Stats -->
@@ -193,7 +258,7 @@ require_once '../includes/sidebar.php';
                     <button class="bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-100 px-4 py-2 rounded shadow-sm">
                         <i class="ph ph-download mr-1"></i> Download Passbook PDF
                     </button>
-                    <span class="text-xs text-gray-400 block mt-2">To download standard RBI compliant passbook, click above.</span>
+                    <!-- <span class="text-xs text-gray-400 block mt-2">To download standard RBI compliant passbook, click above.</span> -->
                 </div>
             </div>
         </div>

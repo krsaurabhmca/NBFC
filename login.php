@@ -8,7 +8,9 @@ if(isset($_SESSION['user_id'])) {
 }
 
 require_once 'includes/db.php';
+require_once 'includes/functions.php';
 
+$bank_name = getSetting($conn, 'bank_name') ?: 'NBFC Core';
 $error = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
@@ -43,7 +45,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - NBFC Core</title>
+    <title>Login - <?= htmlspecialchars($bank_name) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -53,8 +55,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
 
     <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <div class="bg-slate-900 p-8 text-center">
-            <h1 class="text-3xl font-bold tracking-wider text-white mb-2 flex items-center justify-center gap-2">
-                <i class="ph ph-bank text-indigo-400"></i> NBFC <span class="text-indigo-400">Core</span>
+            <h1 class="text-2xl font-bold tracking-wider text-white mb-2 flex items-center justify-center gap-2 uppercase">
+                <i class="ph ph-bank text-indigo-400"></i> <?= htmlspecialchars($bank_name) ?>
             </h1>
             <p class="text-slate-400 text-sm">Sign in to manage banking operations</p>
         </div>

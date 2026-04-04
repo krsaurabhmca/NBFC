@@ -54,6 +54,9 @@ require_once '../includes/sidebar.php';
             <a href="?type=summary" class="<?= $type=='summary'?'bg-indigo-600 text-white':'bg-white text-gray-700' ?> px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
                 Financial Summary
             </a>
+            <a href="account_report.php" class="bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1.5 hover:bg-gray-50">
+                <i class="ph ph-folder-open text-indigo-500"></i> Account Open Report
+            </a>
             <a href="?type=maturity" class="<?= $type=='maturity'?'bg-indigo-600 text-white':'bg-white text-gray-700' ?> px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
                 Maturity Report
             </a>
@@ -64,6 +67,43 @@ require_once '../includes/sidebar.php';
     </div>
 
     <?php if($type == 'summary'): ?>
+    <?php
+    // Velocity Data (Last 30 Days)
+    $last_30 = date('Y-m-d', strtotime('-30 days'));
+    $vel_res = mysqli_query($conn, "SELECT 
+        SUM(CASE WHEN transaction_type IN ('Deposit', 'EMI', 'Account-Open') THEN amount ELSE 0 END) as inflows,
+        SUM(CASE WHEN transaction_type IN ('Withdrawal', 'Pre-Closure') THEN amount ELSE 0 END) as outflows
+        FROM transactions WHERE DATE(transaction_date) >= '$last_30'");
+    $velocity = mysqli_fetch_assoc($vel_res);
+    ?>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-indigo-600">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Cash Flow Velocity</p>
+                    <h3 class="text-lg font-bold text-gray-800">Inflows (30 Days)</h3>
+                </div>
+                <span class="text-emerald-500 font-bold text-sm bg-emerald-50 px-2 py-1 rounded">+<?= formatCurrency($velocity['inflows'] ?? 0) ?></span>
+            </div>
+            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                <div class="bg-indigo-600 h-full w-[<?= min(100, (($velocity['inflows'] ?? 1) / max(1, ($velocity['inflows']+$velocity['outflows']))) * 100) ?>%]"></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-rose-600">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Cash Flow Velocity</p>
+                    <h3 class="text-lg font-bold text-gray-800">Outflows (30 Days)</h3>
+                </div>
+                <span class="text-rose-500 font-bold text-sm bg-rose-50 px-2 py-1 rounded">-<?= formatCurrency(abs($velocity['outflows'] ?? 0)) ?></span>
+            </div>
+            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                <div class="bg-rose-500 h-full w-[<?= min(100, ((abs($velocity['outflows']) ?? 1) / max(1, ($velocity['inflows']+$velocity['outflows']))) * 100) ?>%]"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
         <div class="p-6 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <h3 class="font-semibold text-gray-800 text-lg">System-Wide Financial Aggregates</h3>
@@ -73,80 +113,89 @@ require_once '../includes/sidebar.php';
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Assets -->
                 <div class="space-y-4">
-                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">Assets / Outflows</h4>
+                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2 flex items-center gap-2">
+                        <i class="ph ph-trend-up text-rose-500"></i> Assets / Outflows
+                    </h4>
                     
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-600">Total Loans Disbursed</span>
-                        <span class="font-bold text-gray-800"><?= formatCurrency($txn_summary['Account-Open'] ?? 0) ?></span> <!-- Assuming Account Open for loan is disbursal in our basic logic -->
+                        <span class="font-bold text-gray-800"><?= formatCurrency($txn_summary['Account-Open'] ?? 0) ?></span>
                     </div>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Current Outstanding Loans</span>
+                    <div class="flex justify-between items-center text-sm p-2 bg-rose-50/50 rounded">
+                        <span class="text-gray-600">Active Book Value (Loans)</span>
                         <span class="font-bold text-rose-600"><?= formatCurrency(abs($out_loans ?? 0)) ?></span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-600">Total Withdrawals Paid</span>
-                        <span class="font-bold text-gray-800"><?= formatCurrency($txn_summary['Withdrawal'] ?? 0) ?></span>
+                        <span class="font-bold text-gray-800 text-xs tracking-tight"><?= formatCurrency($txn_summary['Withdrawal'] ?? 0) ?></span>
                     </div>
                 </div>
 
                 <!-- Liabilities -->
                 <div class="space-y-4">
-                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">Liabilities / Inflows</h4>
+                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2 flex items-center gap-2">
+                        <i class="ph ph-trend-down text-emerald-500"></i> Liabilities / Inflows
+                    </h4>
                     
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Total Deposits Collected</span>
+                        <span class="text-gray-600">Savings & RD Deposits</span>
                         <span class="font-bold text-emerald-600"><?= formatCurrency($txn_summary['Deposit'] ?? 0) ?></span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Total EMIs Recovered</span>
+                        <span class="text-gray-600">Loan EMIs Recovered</span>
                         <span class="font-bold text-blue-600"><?= formatCurrency($txn_summary['EMI'] ?? 0) ?></span>
                     </div>
-                </div>
-            </div>
-            
-            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 border-t border-gray-100 pt-8">
-                <!-- Demographics -->
-                <div class="space-y-4">
-                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">System Demographics</h4>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Total Registered Members</span>
-                        <span class="font-bold text-gray-800"><?= number_format($members_count) ?></span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Active LEDGER Accounts</span>
-                        <span class="font-bold text-gray-800"><?= number_format($ac_counts['active_accounts']) ?></span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Closed / Settled Accounts</span>
-                        <span class="font-bold text-gray-800"><?= number_format($ac_counts['closed_accounts']) ?></span>
+                    <div class="flex justify-between items-center text-sm border-t border-gray-50 pt-2 font-medium">
+                        <span class="text-gray-500">Other Incomes (Fines)</span>
+                        <span class="text-amber-600"><?= formatCurrency($txn_summary['Fine'] ?? 0) ?></span>
                     </div>
                 </div>
 
+                 <!-- Demographics -->
+                 <div class="space-y-4">
+                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">Operational Health</h4>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Total Members</span>
+                        <span class="font-bold text-gray-800"><?= number_format($members_count) ?></span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Active Accounts Ratio</span>
+                        <span class="font-bold text-indigo-600"><?= number_format(($ac_counts['active_accounts'] / max(1, $ac_counts['active_accounts'] + $ac_counts['closed_accounts'])) * 100, 1) ?>%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 border-t border-gray-100 pt-8">
                 <!-- Current Portfolio Holdings -->
-                <div class="lg:col-span-2 space-y-4">
-                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">Current Active Portfolio Liability</h4>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="flex justify-between items-center text-sm bg-gray-50 p-3 rounded border border-gray-100">
-                            <span class="text-gray-600">Savings Balances</span>
-                            <span class="font-bold text-emerald-700"><?= formatCurrency($acc_balances['Savings'] ?? 0) ?></span>
+                <div class="lg:col-span-3 space-y-4">
+                    <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">Portfolio Liability Distribution (Current Balances)</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Savings</p>
+                             <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['Savings'] ?? 0) ?></p>
                         </div>
-                        <div class="flex justify-between items-center text-sm bg-gray-50 p-3 rounded border border-gray-100">
-                            <span class="text-gray-600">Fixed Deposits (FD)</span>
-                            <span class="font-bold text-emerald-700"><?= formatCurrency($acc_balances['FD'] ?? 0) ?></span>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Recurring (RD)</p>
+                             <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['RD'] ?? 0) ?></p>
                         </div>
-                        <div class="flex justify-between items-center text-sm bg-gray-50 p-3 rounded border border-gray-100">
-                            <span class="text-gray-600">Recurring Deposits (RD)</span>
-                            <span class="font-bold text-emerald-700"><?= formatCurrency($acc_balances['RD'] ?? 0) ?></span>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Fixed Deposits</p>
+                             <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['FD'] ?? 0) ?></p>
                         </div>
-                        <div class="flex justify-between items-center text-sm bg-gray-50 p-3 rounded border border-gray-100">
-                            <span class="text-gray-600">MIS / Daily Deposits</span>
-                            <span class="font-bold text-emerald-700"><?= formatCurrency(($acc_balances['MIS'] ?? 0) + ($acc_balances['DD'] ?? 0)) ?></span>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Monthly (MIS)</p>
+                             <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['MIS'] ?? 0) ?></p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Daily (DD)</p>
+                             <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['DD'] ?? 0) ?></p>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div class="mt-8 pt-6 border-t border-dashed border-gray-200 text-center text-xs text-gray-400">
+            <div class="mt-8 pt-6 border-t border-dashed border-gray-200 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+                <i class="ph ph-info text-lg"></i>
                 This is a summarized aggregation based on the internal ledger mapping. For detailed balance sheet, please export ledger data to tally.
             </div>
         </div>

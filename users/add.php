@@ -75,10 +75,11 @@ require_once '../includes/sidebar.php';
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">System Role <span class="text-red-500">*</span></label>
                 <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="staff" <?= isset($_POST['role']) && $_POST['role'] == 'staff' ? 'selected' : '' ?>>Branch Staff (Standard Access)</option>
+                    <option value="staff" <?= (!isset($_POST['role']) || $_POST['role'] == 'staff') ? 'selected' : '' ?>>Branch Staff (Standard Access)</option>
                     <option value="admin" <?= isset($_POST['role']) && $_POST['role'] == 'admin' ? 'selected' : '' ?>>Administrator (Full Access)</option>
+                    <option value="advisor" <?= isset($_POST['role']) && $_POST['role'] == 'advisor' ? 'selected' : '' ?>>Field Advisor / Staff (Wallet Access)</option>
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Staff handles daily accounts. Admins can configure settings.</p>
+                <p class="text-xs text-gray-500 mt-1">Staff handles daily accounts. Admins can configure settings. Advisors collect field deposits.</p>
             </div>
             
             <div>

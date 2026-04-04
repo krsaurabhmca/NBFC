@@ -84,6 +84,26 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_txn'])) {
         }
 
         if($allow) {
+            // ADVISOR WALLET INTEGRATION
+            if($_SESSION['role'] == 'advisor' && in_array($txn_type, ['Deposit', 'EMI'])) {
+                $advisor_id = $_SESSION['user_id'];
+                // Lock advisor balance
+                $adv_res = mysqli_query($conn, "SELECT wallet_balance FROM users WHERE id = $advisor_id FOR UPDATE");
+                $adv_bal = mysqli_fetch_assoc($adv_res)['wallet_balance'];
+                
+                if($amount > $adv_bal) {
+                    $error = "Insufficient wallet balance. Please recharge your wallet. (Available: " . formatCurrency($adv_bal) . ")";
+                    mysqli_query($conn, "ROLLBACK");
+                    $allow = false;
+                } else {
+                    $new_wallet_bal = $adv_bal - $amount;
+                    mysqli_query($conn, "UPDATE users SET wallet_balance = $new_wallet_bal WHERE id = $advisor_id");
+                    // We'll insert wallet txn after we have the TXN ID below
+                }
+            }
+        }
+
+        if($allow) {
             // Adjust balance
             mysqli_query($conn, "UPDATE accounts 
                                  SET current_balance = $balance_after 
@@ -101,6 +121,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_txn'])) {
             
             if(mysqli_query($conn, $sql)) {
                 $inserted_txn_id = mysqli_insert_id($conn);
+                
+                // Finalize Wallet Transaction for Advisor
+                if($_SESSION['role'] == 'advisor' && in_array($txn_type, ['Deposit', 'EMI'])) {
+                    $acc_no = $acc['account_no'];
+                    $wallet_desc = "$txn_type for account $acc_no";
+                    // balance_after logic: we already updated the user's wallet_balance in DB, so fetch it again or just calc
+                    // since we are still in transaction, we can just use $new_wallet_bal
+                    $sql_wallet_txn = "INSERT INTO wallet_transactions (user_id, transaction_type, amount, balance_after, reference_id, description, created_by) 
+                                       VALUES ($user_id, 'Collection', -$amount, $new_wallet_bal, '$txn_id', '$wallet_desc', $user_id)";
+                    mysqli_query($conn, $sql_wallet_txn);
+                }
+
                 mysqli_query($conn, "COMMIT");
                 $_SESSION['success'] = "Transaction Processed Successfully! TXN ID: $txn_id";
                 // Redirect to receipt

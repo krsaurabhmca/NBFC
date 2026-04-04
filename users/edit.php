@@ -99,6 +99,7 @@ require_once '../includes/sidebar.php';
                 <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none flex-1" <?= $user['id'] == $_SESSION['user_id'] ? 'disabled' : '' ?>>
                     <option value="staff" <?= $user['role'] == 'staff' ? 'selected' : '' ?>>Branch Staff (Standard Access)</option>
                     <option value="admin" <?= $user['role'] == 'admin' ? 'selected' : '' ?>>Administrator (Full Access)</option>
+                    <option value="advisor" <?= $user['role'] == 'advisor' ? 'selected' : '' ?>>Field Advisor / Staff (Wallet Access)</option>
                 </select>
                 <?php if($user['id'] == $_SESSION['user_id']): ?>
                     <input type="hidden" name="role" value="<?= $user['role'] ?>">

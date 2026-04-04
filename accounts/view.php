@@ -29,11 +29,14 @@ $result = mysqli_query($conn, $sql);
         </div>
         
         <div class="flex items-center gap-3">
-            <div class="bg-white border border-gray-200 rounded-lg p-1 hidden md:flex items-center text-sm shadow-sm">
+            <div class="bg-white border border-gray-200 rounded-lg p-1 hidden lg:flex items-center text-sm shadow-sm">
                 <a href="view.php" class="px-3 py-1.5 rounded-md <?= !$filter_type ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">All</a>
                 <a href="?type=Savings" class="px-3 py-1.5 rounded-md <?= $filter_type=='Savings' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Savings</a>
                 <a href="?type=Loan" class="px-3 py-1.5 rounded-md <?= $filter_type=='Loan' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Loans</a>
                 <a href="?type=FD" class="px-3 py-1.5 rounded-md <?= $filter_type=='FD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">FDs</a>
+                <a href="?type=RD" class="px-3 py-1.5 rounded-md <?= $filter_type=='RD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">RDs</a>
+                <a href="?type=MIS" class="px-3 py-1.5 rounded-md <?= $filter_type=='MIS' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">MIS</a>
+                <a href="?type=DD" class="px-3 py-1.5 rounded-md <?= $filter_type=='DD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Daily Dep..</a>
             </div>
             
             <a href="open.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">

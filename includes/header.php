@@ -7,7 +7,7 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBFC Core Banking App</title>
+    <title><?= htmlspecialchars(getSetting($conn, 'bank_name') ?: 'NBFC Core') ?> - Banking System</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Phosphor Icons for premium UI -->
@@ -31,6 +31,45 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
         .select2-container--default .select2-selection--single .select2-selection__arrow {
             height: 2.6rem;
         }
+
+        /* Transparent Ghost Scrollbar for Sidebar */
+        aside nav::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        aside nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        aside nav::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.05); /* Very subtle */
+            border-radius: 20px;
+        }
+        aside nav:hover::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2); /* Slightly visible on hover */
+        }
+        
+        /* Firefox Support */
+        aside nav {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.0) transparent;
+        }
+        aside nav:hover {
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        /* Sidebar Toggle Styles */
+        body.sidebar-collapsed aside {
+            display: none !important;
+        }
     </style>
+    <script>
+        // Apply sidebar state immediately to prevent flicker
+        if (localStorage.getItem('sidebarState') === 'collapsed') {
+            document.documentElement.classList.add('sidebar-collapsed-init');
+            window.addEventListener('DOMContentLoaded', () => {
+                document.body.classList.add('sidebar-collapsed');
+            });
+        }
+    </script>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">

@@ -65,15 +65,26 @@ $result = mysqli_query($conn, $sql);
                                     <div class="text-xs text-gray-400 mt-1">Joined: <?= date('M Y', strtotime($row['created_at'])) ?></div>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="font-semibold text-gray-800 flex items-center gap-2">
-                                        <?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?>
-                                        <?php if($row['status'] == 'active'): ?>
-                                            <div class="w-2 h-2 rounded-full bg-emerald-500" title="Active"></div>
+                                    <div class="flex items-center gap-3">
+                                        <?php if($row['photo_path']): ?>
+                                            <img src="../<?= htmlspecialchars($row['photo_path']) ?>" class="w-10 h-10 rounded-full object-cover shadow-sm bg-gray-100 border border-gray-100">
                                         <?php else: ?>
-                                            <div class="w-2 h-2 rounded-full bg-rose-500" title="<?= htmlspecialchars($row['status']) ?>"></div>
+                                            <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center font-bold text-sm border border-indigo-100">
+                                                <?= strtoupper(substr($row['first_name'], 0, 1)) ?>
+                                            </div>
                                         <?php endif; ?>
+                                        <div>
+                                            <div class="font-semibold text-gray-800 flex items-center gap-2">
+                                                <?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?>
+                                                <?php if($row['status'] == 'active'): ?>
+                                                    <div class="w-2 h-2 rounded-full bg-emerald-500" title="Active"></div>
+                                                <?php else: ?>
+                                                    <div class="w-2 h-2 rounded-full bg-rose-500" title="<?= htmlspecialchars($row['status']) ?>"></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="text-[10px] text-gray-500 mt-0.5">DOB: <?= date('d/m/Y', strtotime($row['dob'])) ?></div>
+                                        </div>
                                     </div>
-                                    <div class="text-xs text-gray-500 mt-0.5">DOB: <?= date('d/m/Y', strtotime($row['dob'])) ?></div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="text-gray-700"><i class="ph ph-phone text-gray-400 mr-1"></i> <?= htmlspecialchars($row['phone']) ?></div>
@@ -95,6 +106,9 @@ $result = mysqli_query($conn, $sql);
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
+                                        <a href="edit.php?id=<?= $row['id'] ?>" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Member Information">
+                                            <i class="ph ph-pencil-simple text-xl"></i>
+                                        </a>
                                         <a href="ledger.php?id=<?= $row['id'] ?>" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Ledger and Accounts">
                                             <i class="ph ph-file-text text-xl"></i>
                                         </a>

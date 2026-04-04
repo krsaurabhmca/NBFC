@@ -67,10 +67,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['open_account'])) {
             $loan_interest_type = isset($_POST['loan_interest_type']) ? sanitize($conn, $_POST['loan_interest_type']) : 'Flat';
             $linked_savings_account = (isset($_POST['linked_savings_account']) && $_POST['linked_savings_account'] !== '') ? (int)$_POST['linked_savings_account'] : 'NULL';
 
-            $sql = "INSERT INTO accounts (account_no, member_id, scheme_id, account_type, opening_balance, current_balance, principal_amount, installment_amount, tenure_months, opening_date, maturity_date, guarantor_name, guarantor_phone, photo_path, document_path, loan_interest_type, linked_savings_account) 
-                    VALUES ('$account_no', $member_id, $scheme_id, '$account_type', $opening_balance, $opening_balance, $principal_amount, $installment_amount, $tenure, '$opening_date', " . ($maturity_date ? "'$maturity_date'" : "NULL") . ", " . ($g_name ? "'$g_name'" : "NULL") . ", " . ($g_phone ? "'$g_phone'" : "NULL") . ", " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($doc_path ? "'$doc_path'" : "NULL") . ", '$loan_interest_type', $linked_savings_account)";
-            
-            if(mysqli_query($conn, $sql)) {
+            // ADVISOR WALLET CHECK (Proactive)
+            if($_SESSION['role'] == 'advisor' && $amount > 0 && in_array($account_type, ['Savings', 'FD', 'RD', 'DD', 'MIS'])) {
+                $adv_id = $_SESSION['user_id'];
+                $adv_check = mysqli_query($conn, "SELECT wallet_balance FROM users WHERE id = $adv_id FOR UPDATE");
+                $adv_bal = mysqli_fetch_assoc($adv_check)['wallet_balance'];
+                if($amount > $adv_bal) {
+                    $error = "Insufficient wallet balance to process initial deposit. Available: " . formatCurrency($adv_bal);
+                }
+            }
+
+            if(!$error) {
+                mysqli_query($conn, "START TRANSACTION");
+                $sql = "INSERT INTO accounts (account_no, member_id, scheme_id, account_type, opening_balance, current_balance, principal_amount, installment_amount, tenure_months, opening_date, maturity_date, guarantor_name, guarantor_phone, photo_path, document_path, loan_interest_type, linked_savings_account) 
+                        VALUES ('$account_no', $member_id, $scheme_id, '$account_type', $opening_balance, $opening_balance, $principal_amount, $installment_amount, $tenure, '$opening_date', " . ($maturity_date ? "'$maturity_date'" : "NULL") . ", " . ($g_name ? "'$g_name'" : "NULL") . ", " . ($g_phone ? "'$g_phone'" : "NULL") . ", " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($doc_path ? "'$doc_path'" : "NULL") . ", '$loan_interest_type', $linked_savings_account)";
+                
+                if(mysqli_query($conn, $sql)) {
                 $account_id = mysqli_insert_id($conn);
                 
                 // If it's a loan, we should generate an EMI Schedule
@@ -107,26 +119,56 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['open_account'])) {
                 $_SESSION['success'] = "Account opened successfully! Account No: $account_no";
                 
                 // If initial deposit/disbursal, create a transaction record
-                if($amount > 0 && in_array($account_type, ['Savings', 'FD', 'MIS', 'Loan'])) {
-                    $txn_type = ($account_type == 'Loan') ? 'Transaction' : 'Deposit'; // Loan disbursal
-                    $desc = ($account_type == 'Loan') ? 'Loan Disbursal' : 'Account Opening Deposit';
+                if($amount > 0 && in_array($account_type, ['Savings', 'FD', 'MIS', 'RD', 'DD'])) {
+                    $txn_type = 'Account-Open';
+                    $desc = 'Account Opening Deposit';
                     $txn_id = 'TXN-' . time() . rand(10,99);
                     $user_id = $_SESSION['user_id'];
                     $now = date('Y-m-d H:i:s');
                     
+                    // ADVISOR WALLET DEDUCTION
+                    if($_SESSION['role'] == 'advisor') {
+                        // Lock and verify wallet balance
+                        $adv_res = mysqli_query($conn, "SELECT wallet_balance FROM users WHERE id = $user_id FOR UPDATE");
+                        $adv_bal = mysqli_fetch_assoc($adv_res)['wallet_balance'];
+                        
+                        if($amount > $adv_bal) {
+                            // If insufficient, we should ideally rollback the account creation too
+                            // Since we are already inside the success block of accounts INSERT, we need logic to handle this
+                            // Better: Check this BEFORE the account INSERT. 
+                            // For now, I'll add the check before the actual INSERT at line 70.
+                        }
+                    }
+                    
                     mysqli_query($conn, "INSERT INTO transactions (transaction_id, account_id, transaction_type, amount, balance_after, description, transaction_date, created_by) 
                                          VALUES ('$txn_id', $account_id, 'Account-Open', $amount, $opening_balance, '$desc', '$now', $user_id)");
-                }
 
+                    if($_SESSION['role'] == 'advisor') {
+                        $new_wallet_bal = $adv_bal - $amount;
+                        mysqli_query($conn, "UPDATE users SET wallet_balance = $new_wallet_bal WHERE id = $user_id");
+                        $wallet_desc = "Initial Deposit for A/c $account_no";
+                        mysqli_query($conn, "INSERT INTO wallet_transactions (user_id, transaction_type, amount, balance_after, reference_id, description, created_by) 
+                                           VALUES ($user_id, 'Collection', -$amount, $new_wallet_bal, '$txn_id', '$wallet_desc', $user_id)");
+                    }
+                } elseif($amount > 0 && $account_type == 'Loan') {
+                    // Loan disbursal (system pays out, doesn't affect advisor wallet)
+                    $txn_id = 'TXN-' . time() . rand(10,99);
+                    $now = date('Y-m-d H:i:s');
+                    mysqli_query($conn, "INSERT INTO transactions (transaction_id, account_id, transaction_type, amount, balance_after, description, transaction_date, created_by) 
+                                         VALUES ('$txn_id', $account_id, 'Account-Open', $amount, $opening_balance, 'Loan Disbursal', '$now', {$_SESSION['user_id']})");
+                }
+                mysqli_query($conn, "COMMIT");
                 header("Location: view.php");
                 exit();
             } else {
+                mysqli_query($conn, "ROLLBACK");
                 $error = "Database Error: " . mysqli_error($conn);
             }
         }
-    } else {
-        $error = "Invalid Scheme Selected.";
     }
+} else {
+    $error = "Invalid Scheme Selected.";
+}
 }
 
 // Fetch Members

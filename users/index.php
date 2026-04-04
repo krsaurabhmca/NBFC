@@ -61,13 +61,18 @@ require_once '../includes/sidebar.php';
                                     <?= substr($u['name'], 0, 1) ?>
                                 </div>
                                 <div class="font-semibold text-gray-800"><?= htmlspecialchars($u['name']) ?></div>
+                                <?php if($u['role'] == 'advisor'): ?>
+                                    <div class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-1 mt-0.5">
+                                        <i class="ph ph-wallet-fill"></i> <?= formatCurrency($u['wallet_balance']) ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </td>
                         <td class="px-6 py-4 text-gray-600">
                             <?= htmlspecialchars($u['username']) ?>
                         </td>
                         <td class="px-6 py-4">
-                            <span class="px-3 py-1 text-xs font-semibold rounded-full <?= $u['role'] == 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700' ?>">
+                            <span class="px-3 py-1 text-xs font-semibold rounded-full <?= $u['role'] == 'admin' ? 'bg-purple-100 text-purple-700' : ($u['role'] == 'advisor' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700') ?>">
                                 <?= strtoupper($u['role']) ?>
                             </span>
                         </td>
@@ -75,6 +80,11 @@ require_once '../includes/sidebar.php';
                             <?= date('d M Y', strtotime($u['created_at'])) ?>
                         </td>
                         <td class="px-6 py-4 text-right">
+                            <?php if($u['role'] == 'advisor'): ?>
+                            <a href="recharge_wallet.php?id=<?= $u['id'] ?>" class="text-emerald-600 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 p-2 rounded inline-block transition mr-2" title="Recharge Wallet">
+                                <i class="ph ph-wallet text-lg"></i>
+                            </a>
+                            <?php endif; ?>
                             <a href="edit.php?id=<?= $u['id'] ?>" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-2 rounded inline-block transition">
                                 <i class="ph ph-pencil-simple text-lg"></i>
                             </a>

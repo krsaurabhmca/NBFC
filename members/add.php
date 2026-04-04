@@ -19,6 +19,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_member'])) {
     $nominee_name = sanitize($conn, $_POST['nominee_name']);
     $nominee_relation = sanitize($conn, $_POST['nominee_relation']);
 
+    $photo_path = null;
+    $signature_path = null;
+
+    if(isset($_FILES['photo']) && $_FILES['photo']['error'] == 0) {
+        $allowed = ['jpg', 'jpeg', 'png'];
+        $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+        if(in_array($ext, $allowed)) {
+            $photo_path = 'uploads/photo_' . time() . '_' . rand(100,999) . '.' . $ext;
+            move_uploaded_file($_FILES['photo']['tmp_name'], '../' . $photo_path);
+        }
+    }
+
+    if(isset($_FILES['signature']) && $_FILES['signature']['error'] == 0) {
+        $allowed = ['jpg', 'jpeg', 'png'];
+        $ext = strtolower(pathinfo($_FILES['signature']['name'], PATHINFO_EXTENSION));
+        if(in_array($ext, $allowed)) {
+            $signature_path = 'uploads/sig_' . time() . '_' . rand(100,999) . '.' . $ext;
+            move_uploaded_file($_FILES['signature']['tmp_name'], '../' . $signature_path);
+        }
+    }
+
     // Check Duplicate Aadhar
     $check = mysqli_query($conn, "SELECT id FROM members WHERE aadhar_no = '$aadhar_no'");
     if(mysqli_num_rows($check) > 0) {
@@ -26,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_member'])) {
     } else {
         $member_no = generateSequenceNo($conn, 'MBR', 'members', 'member_no');
         
-        $sql = "INSERT INTO members (member_no, first_name, last_name, dob, gender, phone, email, address, aadhar_no, pan_no, nominee_name, nominee_relation) 
-                VALUES ('$member_no', '$first_name', '$last_name', '$dob', '$gender', '$phone', '$email', '$address', '$aadhar_no', '$pan_no', '$nominee_name', '$nominee_relation')";
+        $sql = "INSERT INTO members (member_no, first_name, last_name, dob, gender, phone, email, address, aadhar_no, pan_no, nominee_name, nominee_relation, photo_path, signature_path) 
+                VALUES ('$member_no', '$first_name', '$last_name', '$dob', '$gender', '$phone', '$email', '$address', '$aadhar_no', '$pan_no', '$nominee_name', '$nominee_relation', " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($signature_path ? "'$signature_path'" : "NULL") . ")";
                 
         if(mysqli_query($conn, $sql)) {
             $_SESSION['success'] = "Member Registration Successful! Member No: $member_no";
@@ -64,7 +85,7 @@ require_once '../includes/sidebar.php';
         </div>
     <?php endif; ?>
 
-    <form method="POST" action="" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <form method="POST" action="" enctype="multipart/form-data" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         
         <!-- Personal Info -->
         <div class="p-6 border-b border-gray-100">
@@ -109,6 +130,18 @@ require_once '../includes/sidebar.php';
             <div class="mt-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Complete Address <span class="text-red-500">*</span></label>
                 <textarea name="address" required rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"></textarea>
+            </div>
+
+            <!-- Documents Upload -->
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                <div>
+                    <label class="block text-sm font-bold text-gray-800 mb-1 flex items-center gap-1.5"><i class="ph ph-image-square text-indigo-500"></i> Member Photo <span class="text-gray-400 font-normal">(JPG/PNG)</span></label>
+                    <input type="file" name="photo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-800 mb-1 flex items-center gap-1.5"><i class="ph ph-signature text-indigo-500"></i> Digital Signature <span class="text-gray-400 font-normal">(JPG/PNG)</span></label>
+                    <input type="file" name="signature" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all">
+                </div>
             </div>
         </div>
 
