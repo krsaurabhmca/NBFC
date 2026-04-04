@@ -202,7 +202,7 @@ if($_SESSION['role'] == 'advisor') {
     <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-6 border-b border-gray-100 flex items-center justify-between">
             <h3 class="font-semibold text-gray-800 text-lg">Recent Transactions</h3>
-            <a href="transactions/process.php" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View All <i class="ph ph-arrow-right"></i></a>
+            <a href="<?= APP_URL ?>transactions/process.php" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View All <i class="ph ph-arrow-right"></i></a>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -259,28 +259,28 @@ if($_SESSION['role'] == 'advisor') {
             </h3>
             <div class="grid grid-cols-2 gap-4">
                 <?php if($_SESSION['role'] == 'admin'): ?>
-                <a href="members/add.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all group border border-emerald-100">
+                <a href="<?= APP_URL ?>members/add.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all group border border-emerald-100">
                     <i class="ph ph-user-plus text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
                     <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">New<br>Member</span>
                 </a>
-                <a href="accounts/open.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all group border border-blue-100">
+                <a href="<?= APP_URL ?>accounts/open.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all group border border-blue-100">
                     <i class="ph ph-folder-plus text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
                     <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">Open<br>Account</span>
                 </a>
-                <a href="transactions/process.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white transition-all group col-span-2 border border-rose-100">
+                <a href="<?= APP_URL ?>transactions/process.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white transition-all group col-span-2 border border-rose-100">
                     <i class="ph ph-arrows-left-right text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
                     <span class="text-[10px] font-black uppercase tracking-widest text-center">Process Transaction Entry</span>
                 </a>
                 <?php else: ?>
-                <a href="advisor/collect.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all group border border-amber-100">
+                <a href="<?= APP_URL ?>advisor/collect.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all group border border-amber-100">
                     <i class="ph ph-hand-coins text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
                     <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">Collect<br>Deposit</span>
                 </a>
-                <a href="advisor/wallet_history.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all group border border-indigo-100">
+                <a href="<?= APP_URL ?>advisor/wallet_history.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all group border border-indigo-100">
                     <i class="ph ph-wallet text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
                     <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">Wallet<br>History</span>
                 </a>
-                <a href="help/calculations.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white transition-all group col-span-2 border border-sky-100">
+                <a href="<?= APP_URL ?>help/calculations.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white transition-all group col-span-2 border border-sky-100">
                     <i class="ph ph-calculator text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
                     <span class="text-[10px] font-black uppercase tracking-widest text-center">Open Calculation Helper</span>
                 </a>

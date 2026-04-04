@@ -5,14 +5,16 @@ if(session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 $host = 'localhost';
-$user = 'root';
-$pass = ''; // Default XAMPP password
-$dbname = 'nbfc';
+$user = 'u443617320_jnbank';
+$pass = '@Bank_2001';
+$dbname = 'u443617320_jnbank';
+
+define('APP_URL', 'https://jn.morg.in/');
 
 $conn = mysqli_connect($host, $user, $pass, $dbname);
 
 if (!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
+    die("Database Connection Error: " . mysqli_connect_error());
 }
 
 // Function to check if user is logged in
