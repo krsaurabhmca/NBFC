@@ -228,8 +228,19 @@ require_once '../includes/sidebar.php';
                         <div>
                             <p class="text-indigo-200 text-xs font-medium uppercase tracking-wider mb-1">Current Balance</p>
                             <h2 class="text-2xl font-bold tracking-tight">
-                                <?= formatCurrency(abs($selected_acc['current_balance'])) ?>
-                                <?= $selected_acc['current_balance'] < 0 ? '<span class="text-xs text-rose-300 ml-1 font-medium bg-rose-500/20 px-1.5 py-0.5 rounded">DUE</span>' : '' ?>
+                                <?php
+                                    $display_bal = abs($selected_acc['current_balance']);
+                                    if($selected_acc['account_type'] == 'Loan') {
+                                        // Total Liability (Principal + Interest + Fines)
+                                        $liability_res = mysqli_query($conn, "SELECT SUM(emi_amount + fine_amount) as total FROM loan_schedules WHERE account_id = " . $selected_acc['id'] . " AND status IN ('Pending', 'Overdue')");
+                                        $liability = mysqli_fetch_assoc($liability_res)['total'] ?? 0;
+                                        $display_bal = $liability;
+                                    }
+                                    echo formatCurrency($display_bal);
+                                ?>
+                                <?php if($selected_acc['account_type'] == 'Loan' || $selected_acc['current_balance'] < 0): ?>
+                                    <span class="text-xs text-rose-300 ml-1 font-medium bg-rose-500/20 px-1.5 py-0.5 rounded">DUE</span>
+                                <?php endif; ?>
                             </h2>
                         </div>
                         <i class="ph ph-wallet text-4xl text-indigo-300 opacity-50"></i>
