@@ -69,7 +69,7 @@ function logAction($conn, $user_id, $action, $details = '') {
         `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-    mysqli_query($conn, $create_sql);
+    mysqli_query($conn, $create_sql) or die(mysqli_error($conn));
 
     $user_id = (int)$user_id;
     $action = mysqli_real_escape_string($conn, $action);
@@ -77,5 +77,5 @@ function logAction($conn, $user_id, $action, $details = '') {
     $ip = $_SERVER['REMOTE_ADDR'];
 
     $sql = "INSERT INTO system_logs (user_id, action, details, ip_address) VALUES ($user_id, '$action', '$details', '$ip')";
-    mysqli_query($conn, $sql);
+    mysqli_query($conn, $sql) or die(mysqli_error($conn));
 }

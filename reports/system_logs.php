@@ -6,11 +6,20 @@ checkAuth();
 // Admin only access
 if($_SESSION['role'] !== 'admin') {
     $_SESSION['error'] = "Unauthorized Access.";
-    header("Location: ../index.php");
+    header("Location: " . APP_URL . "index.php");
     exit();
 }
 
-require_once '../includes/functions.php';
+// Ensure table exists
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS `system_logs` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `user_id` int(11) NOT NULL,
+    `action` varchar(100) NOT NULL,
+    `details` text,
+    `ip_address` varchar(45) NOT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
 // Filter handling
 $where = "WHERE 1=1";

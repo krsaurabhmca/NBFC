@@ -1,6 +1,6 @@
 <?php
 // includes/db.php
-if(session_status() !== PHP_SESSION_ACTIVE) {
+if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
@@ -9,17 +9,22 @@ $is_local = ($_SERVER['HTTP_HOST'] == 'localhost' || $_SERVER['HTTP_HOST'] == '1
 
 // Sensitive configuration isolation
 $config_file = __DIR__ . '/db_credentials.php';
-if (file_exists($config_file)) {
+
+if ($is_local) {
+    $host = 'localhost';
+    $user = 'root';
+    $pass = '';
+    $dbname = 'nbfc';
+    define('APP_URL', 'http://localhost/nbfc/');
+} elseif (file_exists($config_file)) {
     require_once $config_file;
 } else {
-    // Local defaults (Development Fallbacks)
+    // Non-local fallback (Placeholder)
     $host = 'localhost';
-    $user = ($is_local) ? 'root' : ''; 
-    $pass = ($is_local) ? '' : '';
-    $dbname = ($is_local) ? 'nbfc' : '';
-    if (!defined('APP_URL')) {
-        define('APP_URL', ($is_local) ? 'http://localhost/nbfc/' : '');
-    }
+    $user = '';
+    $pass = '';
+    $dbname = '';
+    define('APP_URL', '');
 }
 
 $conn = mysqli_connect($host, $user, $pass, $dbname);
@@ -28,10 +33,13 @@ if (!$conn) {
     die("Database Connection Error: " . mysqli_connect_error());
 }
 
+require_once __DIR__ . '/functions.php';
+
 // Function to check if user is logged in
-function checkAuth() {
+function checkAuth()
+{
     if (!isset($_SESSION['user_id'])) {
-        header("Location: login.php");
+        header("Location: " . APP_URL . "login.php");
         exit();
     }
 }
