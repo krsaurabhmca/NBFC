@@ -108,8 +108,20 @@ if(!$txn) {
                 </div>
 
                 <div class="grid grid-cols-2">
-                    <span class="text-gray-500 font-medium">Closing Balance</span>
-                    <span class="text-right text-gray-800 font-semibold"><?= formatCurrency(abs($txn['balance_after'])) ?> <?= $txn['balance_after'] < 0 ? '(Due)' : '(Cr)' ?></span>
+                    <span class="text-gray-500 font-medium"><?= $txn['account_type'] == 'Loan' ? 'Total Outstanding' : 'Closing Balance' ?></span>
+                    <span class="text-right text-gray-800 font-semibold">
+                        <?php
+                            $display_after = abs($txn['balance_after']);
+                            if($txn['account_type'] == 'Loan') {
+                                // Calculate actual liability from schedules instead of principal-only balance_after
+                                $liability_res = mysqli_query($conn, "SELECT SUM(emi_amount + fine_amount) as total FROM loan_schedules WHERE account_id = " . $txn['account_id'] . " AND status IN ('Pending', 'Overdue')");
+                                $liability = mysqli_fetch_assoc($liability_res)['total'] ?? 0;
+                                $display_after = $liability;
+                            }
+                            echo formatCurrency($display_after);
+                        ?>
+                        <?= ($txn['account_type'] == 'Loan' || $txn['balance_after'] < 0) ? '(Due)' : '(Cr)' ?>
+                    </span>
                 </div>
                 <div class="grid grid-cols-2">
                     <span class="text-gray-500 font-medium">Narration</span>
