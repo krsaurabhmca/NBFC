@@ -57,4 +57,25 @@ function displayAlert() {
 function formatCurrency($amount) {
     return '₹ ' . number_format($amount, 2);
 }
-?>
+
+function logAction($conn, $user_id, $action, $details = '') {
+    // Create table if not exists
+    $create_sql = "CREATE TABLE IF NOT EXISTS `system_logs` (
+        `id` int(11) NOT NULL AUTO_INCREMENT,
+        `user_id` int(11) NOT NULL,
+        `action` varchar(100) NOT NULL,
+        `details` text,
+        `ip_address` varchar(45) NOT NULL,
+        `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+    mysqli_query($conn, $create_sql);
+
+    $user_id = (int)$user_id;
+    $action = mysqli_real_escape_string($conn, $action);
+    $details = mysqli_real_escape_string($conn, $details);
+    $ip = $_SERVER['REMOTE_ADDR'];
+
+    $sql = "INSERT INTO system_logs (user_id, action, details, ip_address) VALUES ($user_id, '$action', '$details', '$ip')";
+    mysqli_query($conn, $sql);
+}

@@ -134,6 +134,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_txn'])) {
                 }
 
                 mysqli_query($conn, "COMMIT");
+                logAction($conn, $_SESSION['user_id'], 'Transaction Processed', "Successful $txn_type of " . formatCurrency($amount) . " with TXN ID: $txn_id");
                 $_SESSION['success'] = "Transaction Processed Successfully! TXN ID: $txn_id";
                 // Redirect to receipt
                 header("Location: receipt.php?id=" . $inserted_txn_id);
