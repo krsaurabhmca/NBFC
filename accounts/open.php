@@ -140,8 +140,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['open_account'])) {
                         }
                     }
                     
+                    $balance_after = $opening_balance + (in_array($account_type, ['Loan']) ? 0 : $amount);
+                    if($account_type == 'RD' || $account_type == 'DD') {
+                         $balance_after = $amount; // Set balance to the first installment paid
+                    }
+
                     mysqli_query($conn, "INSERT INTO transactions (transaction_id, account_id, transaction_type, amount, balance_after, description, transaction_date, created_by) 
-                                         VALUES ('$txn_id', $account_id, 'Account-Open', $amount, $opening_balance, '$desc', '$now', $user_id)");
+                                         VALUES ('$txn_id', $account_id, 'Account-Open', $amount, $balance_after, '$desc', '$now', $user_id)");
+                    
+                    // Update master account balance
+                    mysqli_query($conn, "UPDATE accounts SET current_balance = $balance_after WHERE id = $account_id");
 
                     if($_SESSION['role'] == 'advisor') {
                         $new_wallet_bal = $adv_bal - $amount;

@@ -217,7 +217,7 @@ require_once '../includes/sidebar.php';
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     <?php
-                    $paid_res = mysqli_query($conn, "SELECT SUM(amount) as tot FROM transactions WHERE account_id = $id AND transaction_type = 'Deposit'");
+                    $paid_res = mysqli_query($conn, "SELECT SUM(amount) as tot FROM transactions WHERE account_id = $id AND transaction_type IN ('Deposit', 'Account-Open', 'EMI')");
                     $paid_total = mysqli_fetch_assoc($paid_res)['tot'] ?? 0;
                     $deposit_amt = $acc['installment_amount'];
                     
