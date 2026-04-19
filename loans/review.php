@@ -59,12 +59,23 @@ require_once '../includes/sidebar.php';
             <!-- High Density Member & Advisor Profile -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-lg border border-slate-100 overflow-hidden">
-                        <?php if ($loan['photo_path']): ?>
-                            <img src="<?= APP_URL ?><?= $loan['photo_path'] ?>" class="w-full h-full object-cover">
-                        <?php else: ?>
-                            <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="ph ph-user"></i></div>
-                        <?php endif; ?>
+                    <div class="flex gap-2">
+                        <!-- Photo with Zoom -->
+                        <div onclick="viewDoc('<?= APP_URL ?><?= $loan['photo_path'] ?: 'assets/img/default-user.png' ?>', 'Member Photo')" class="w-12 h-12 bg-white rounded-lg border border-slate-200 overflow-hidden cursor-zoom-in hover:border-indigo-500 transition-all shadow-sm">
+                            <?php if ($loan['photo_path']): ?>
+                                <img src="<?= APP_URL ?><?= $loan['photo_path'] ?>" class="w-full h-full object-cover">
+                            <?php else: ?>
+                                <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="ph ph-user"></i></div>
+                            <?php endif; ?>
+                        </div>
+                        <!-- Signature with Zoom -->
+                        <div onclick="viewDoc('<?= APP_URL ?><?= $loan['signature_path'] ?: 'assets/img/no-sig.png' ?>', 'Digital Signature')" class="w-12 h-12 bg-white rounded-lg border border-slate-200 overflow-hidden cursor-zoom-in hover:border-indigo-500 transition-all shadow-sm">
+                            <?php if ($loan['signature_path']): ?>
+                                <img src="<?= APP_URL ?><?= $loan['signature_path'] ?>" class="w-full h-full object-contain p-1">
+                            <?php else: ?>
+                                <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="ph ph-signature"></i></div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div>
                         <div class="text-sm font-black text-slate-800"><?= $loan['first_name'] ?> <?= $loan['last_name'] ?></div>
@@ -97,6 +108,39 @@ require_once '../includes/sidebar.php';
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- KYC Documents Preview -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5 space-y-4">
+                <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2 flex items-center gap-2">
+                    <i class="ph ph-file-search text-lg text-indigo-500"></i> Verification Documents
+                </h3>
+                
+                <div class="grid grid-cols-1 gap-3">
+                    <?php 
+                    $docs = [
+                        ['label' => 'Aadhar Copy', 'path' => $loan['aadhar_copy'], 'icon' => 'ph-identification-card'],
+                        ['label' => 'PAN Card', 'path' => $loan['pan_copy'], 'icon' => 'ph-cardholder'],
+                        ['label' => 'Cancelled Cheque', 'path' => $loan['cheque_copy'], 'icon' => 'ph-bank']
+                    ];
+                    
+                    foreach($docs as $doc):
+                    ?>
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                    <i class="ph <?= $doc['icon'] ?> text-lg"></i>
+                                </div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase tracking-tight"><?= $doc['label'] ?></span>
+                            </div>
+                            <?php if($doc['path']): ?>
+                                <button type="button" onclick="viewDoc('<?= APP_URL ?><?= $doc['path'] ?>', '<?= $doc['label'] ?>')" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">View File</button>
+                            <?php else: ?>
+                                <span class="text-[8px] font-bold text-slate-300 italic">Not Uploaded</span>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
@@ -233,6 +277,58 @@ require_once '../includes/sidebar.php';
             </div>
     </form>
 </div>
+
+<!-- Document Viewer Modal -->
+<div id="docModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+    <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden transform transition-all border border-white/20">
+        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0">
+            <div>
+                <h3 id="docTitle" class="text-lg font-black text-slate-800 tracking-tight">Verification Document</h3>
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Sanction Audit Panel</p>
+            </div>
+            <button onclick="closeDocModal()" class="w-10 h-10 bg-slate-50 text-slate-400 hover:text-rose-500 rounded-xl flex items-center justify-center transition-all group">
+                <i class="ph ph-x text-xl group-hover:rotate-90 transition-transform"></i>
+            </button>
+        </div>
+        <div class="flex-1 bg-slate-50 p-6 overflow-auto flex items-center justify-center" id="docContent">
+            <!-- Dynamic Content -->
+        </div>
+    </div>
+</div>
+
+<script>
+function viewDoc(path, title) {
+    const modal = document.getElementById('docModal');
+    const content = document.getElementById('docContent');
+    const titleEl = document.getElementById('docTitle');
+    
+    titleEl.innerText = title;
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    const ext = path.split('.').pop().toLowerCase();
+    
+    if(ext === 'pdf') {
+        content.innerHTML = `<iframe src="${path}" class="w-full h-full rounded-xl border-0 shadow-sm bg-white"></iframe>`;
+    } else {
+        content.innerHTML = `<img src="${path}" class="max-w-full max-h-full rounded-xl shadow-2xl border-4 border-white animate-fade-in">`;
+    }
+}
+
+function closeDocModal() {
+    document.getElementById('docModal').classList.add('hidden');
+    document.getElementById('docContent').innerHTML = '';
+    document.body.style.overflow = '';
+}
+</script>
+
+<style>
+@keyframes fade-in {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+</style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

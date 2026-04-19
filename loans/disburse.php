@@ -22,6 +22,34 @@ while($s = mysqli_fetch_assoc($schemes)) {
 mysqli_data_seek($schemes, 0);
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['disburse_loan'])) {
+    // Handle File Uploads
+    $aadhar_path = '';
+    $pan_path = '';
+    $cheque_path = '';
+    
+    $upload_dir = '../uploads/documents/';
+    if(!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+    
+    $max_size = 2 * 1024 * 1024; // 2MB
+    
+    $files = [
+        'aadhar_copy' => &$aadhar_path,
+        'pan_copy' => &$pan_path,
+        'cheque_copy' => &$cheque_path
+    ];
+    
+    foreach($files as $key => &$path) {
+        if(isset($_FILES[$key]) && $_FILES[$key]['error'] == 0) {
+            if($_FILES[$key]['size'] <= $max_size) {
+                $ext = pathinfo($_FILES[$key]['name'], PATHINFO_EXTENSION);
+                $new_name = $key . '_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+                if(move_uploaded_file($_FILES[$key]['tmp_name'], $upload_dir . $new_name)) {
+                    $path = 'uploads/documents/' . $new_name;
+                }
+            }
+        }
+    }
+
     $member_id = (int)$_POST['member_id'];
     $scheme_id = (int)$_POST['scheme_id'];
     $principal = (float)$_POST['amount'];
@@ -44,8 +72,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['disburse_loan'])) {
     
     // 1. Create Loan Account (Status: Pending Approval)
     $branch_id = (int)$_SESSION['branch_id'];
-    $sql_acc = "INSERT INTO accounts (account_no, branch_id, member_id, scheme_id, account_type, opening_balance, current_balance, principal_amount, tenure_months, interest_rate, opening_date, maturity_date, emi_date, repayment_frequency, repayment_day_1, repayment_day_2, referred_by, disbursal_commission_percent, collection_commission_percent, loan_interest_type, status) 
-                VALUES ('$account_no', $branch_id, $member_id, $scheme_id, 'Loan', -$principal, -$principal, $principal, $tenure, $interest_rate, '$disbursal_date', '$maturity_date', $day1, '$frequency', $day1, $day2, $referred_by, $disbursal_comm_pct, $collection_comm_pct, '$interest_type', 'pending_approval')";
+    $sql_acc = "INSERT INTO accounts (account_no, branch_id, member_id, scheme_id, account_type, opening_balance, current_balance, principal_amount, tenure_months, interest_rate, opening_date, maturity_date, emi_date, repayment_frequency, repayment_day_1, repayment_day_2, referred_by, disbursal_commission_percent, collection_commission_percent, loan_interest_type, status, aadhar_copy, pan_copy, cheque_copy) 
+                VALUES ('$account_no', $branch_id, $member_id, $scheme_id, 'Loan', -$principal, -$principal, $principal, $tenure, $interest_rate, '$disbursal_date', '$maturity_date', $day1, '$frequency', $day1, $day2, $referred_by, $disbursal_comm_pct, $collection_comm_pct, '$interest_type', 'pending_approval', '$aadhar_path', '$pan_path', '$cheque_path')";
     
     if(mysqli_query($conn, $sql_acc)) {
         $account_id = mysqli_insert_id($conn);
@@ -89,7 +117,7 @@ require_once '../includes/sidebar.php';
 
     <?= displayAlert() ?>
 
-    <form method="POST" action="" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <form method="POST" action="" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div class="lg:col-span-8 space-y-8">
             
             <!-- Section 1: Customer & Scheme -->
@@ -213,6 +241,41 @@ require_once '../includes/sidebar.php';
                     <div class="md:col-span-3 space-y-2">
                         <label class="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Collection %</label>
                         <input type="number" step="0.01" name="collection_comm_pct" value="0.00" class="w-full px-4 py-3 border-2 border-transparent rounded-xl text-sm font-black text-slate-800 bg-white shadow-sm">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Document Uploads -->
+            <div class="bg-indigo-50/30 p-6 rounded-xl border border-indigo-100/50">
+                 <div class="mb-6 flex items-center border-b border-indigo-100/30 pb-4 justify-between">
+                    <h3 class="font-black text-slate-800 text-[10px] uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[10px]">04</span>
+                        KYC Documents
+                    </h3>
+                    <span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest italic">Max 2MB per file (Optional)</span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">Aadhar Copy</label>
+                        <div class="relative group/up">
+                            <input type="file" name="aadhar_copy" onchange="previewFile(this, 'aadhar_preview')" accept="image/*,.pdf" class="w-full text-xs font-bold text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-indigo-600 file:text-white hover:file:bg-slate-900 transition-all cursor-pointer">
+                            <div id="aadhar_preview" class="hidden mt-2 p-1 bg-white border border-slate-100 rounded-lg w-20 h-20 overflow-hidden flex items-center justify-center"></div>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">PAN Card Copy</label>
+                        <div class="relative group/up">
+                            <input type="file" name="pan_copy" onchange="previewFile(this, 'pan_preview')" accept="image/*,.pdf" class="w-full text-xs font-bold text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-indigo-600 file:text-white hover:file:bg-slate-900 transition-all cursor-pointer">
+                            <div id="pan_preview" class="hidden mt-2 p-1 bg-white border border-slate-100 rounded-lg w-20 h-20 overflow-hidden flex items-center justify-center"></div>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">Cancelled Cheque</label>
+                        <div class="relative group/up">
+                            <input type="file" name="cheque_copy" onchange="previewFile(this, 'cheque_preview')" accept="image/*,.pdf" class="w-full text-xs font-bold text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-indigo-600 file:text-white hover:file:bg-slate-900 transition-all cursor-pointer">
+                            <div id="cheque_preview" class="hidden mt-2 p-1 bg-white border border-slate-100 rounded-lg w-20 h-20 overflow-hidden flex items-center justify-center"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -350,6 +413,35 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProjection();
     });
 });
+
+function previewFile(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    if (file) {
+        if(file.size > 2 * 1024 * 1024) {
+            alert('File too large! Max 2MB allowed.');
+            input.value = '';
+            preview.classList.add('hidden');
+            return;
+        }
+
+        preview.classList.remove('hidden');
+        if (file.type.match('image.*')) {
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+            }
+            reader.readAsDataURL(file);
+        } else if (file.type === 'application/pdf') {
+            preview.innerHTML = `<div class="flex flex-col items-center justify-center text-rose-500"><i class="ph ph-file-pdf text-3xl"></i><span class="text-[8px] font-black uppercase">PDF</span></div>`;
+        } else {
+            preview.innerHTML = `<div class="flex flex-col items-center justify-center text-slate-400"><i class="ph ph-file text-3xl"></i><span class="text-[8px] font-black uppercase">FILE</span></div>`;
+        }
+    } else {
+        preview.classList.add('hidden');
+    }
+}
 </script>
 
 <?php require_once '../includes/footer.php'; ?>
