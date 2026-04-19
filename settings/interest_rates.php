@@ -11,6 +11,13 @@ if($_SESSION['role'] !== 'admin') {
 
 require_once '../includes/functions.php';
 
+// Check for Loan Only Mode
+if(getSetting($conn, 'loan_only_mode') == '1') {
+    $_SESSION['error'] = "Interest Rate setup is suppressed in Loan-Only Mode. Manage rates via Schemes instead.";
+    header("Location: general.php");
+    exit();
+}
+
 // Handle Scheme Update
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_scheme'])) {
     $scheme_id = (int)$_POST['scheme_id'];

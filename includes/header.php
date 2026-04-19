@@ -61,6 +61,66 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
         body.sidebar-collapsed aside {
             display: none !important;
         }
+
+        /* Overall Compact UI Tweaks */
+        body { font-size: 0.875rem; }
+        h1 { font-size: 1.25rem !important; }
+        
+        .max-w-6xl, .max-w-7xl, .max-w-5xl, .max-w-4xl {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        /* Table Tightening */
+        table th {
+            font-size: 0.7rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.5rem 1rem !important;
+            background: #f8fafc;
+            color: #64748b;
+        }
+        table td {
+            padding: 0.4rem 1rem !important;
+            font-size: 0.85rem;
+        }
+        
+        /* Card refinements */
+        .bg-white.rounded-2xl {
+            border-radius: 0.75rem !important;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+        }
+        .p-8 { padding: 1.25rem !important; }
+        .p-6, .p-5 { padding: 1rem !important; }
+        .gap-6 { gap: 0.75rem !important; }
+        .mb-6, .mb-5 { margin-bottom: 0.75rem !important; }
+        .space-y-6 > * + * { margin-top: 0.75rem !important; }
+        .space-y-4 > * + * { margin-top: 0.5rem !important; }
+        
+        /* Form Tightening */
+        label { 
+            font-size: 0.75rem !important; 
+            font-weight: 600 !important;
+            color: #475569 !important;
+        }
+        input, select, textarea {
+            padding: 0.375rem 0.75rem !important;
+            font-size: 0.85rem !important;
+            border-radius: 0.5rem !important;
+            border-color: #e2e8f0 !important;
+        }
+        
+        button {
+            border-radius: 0.5rem !important;
+            padding-top: 0.5rem !important;
+            padding-bottom: 0.5rem !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* Sidebar refinements */
+        aside { width: 14rem !important; }
+        aside a { font-size: 0.85rem !important; padding: 0.375rem 0.75rem !important; gap: 0.5rem !important; }
+        aside .ph { font-size: 1.1rem !important; }
     </style>
     <script>
         // Apply sidebar state immediately to prevent flicker
@@ -73,3 +133,20 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
     </script>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
+
+<?php if(isset($_SESSION['admin_user_id'])): ?>
+<div class="fixed top-0 left-0 right-0 z-[100] bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-3">
+        <i class="ph ph-mask-happy text-xl animate-bounce"></i>
+        <span class="text-xs font-bold uppercase tracking-widest">System Mode: Logged in as <span class="underline decoration-2"><?= htmlspecialchars($_SESSION['name']) ?></span> (<?= htmlspecialchars($_SESSION['role']) ?>)</span>
+    </div>
+    <a href="<?= APP_URL ?>users/impersonate.php?revert=1" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-white/30">
+        Exit & Back to Admin
+    </a>
+</div>
+<style>
+    /* Adjust top offset when impersonating */
+    aside, .flex-1 { margin-top: 2rem; }
+    header { top: 2rem; }
+</style>
+<?php endif; ?>

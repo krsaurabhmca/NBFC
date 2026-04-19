@@ -8,8 +8,11 @@ require_once '../includes/sidebar.php';
 $filter_type = isset($_GET['type']) ? sanitize($conn, $_GET['type']) : '';
 $search = isset($_GET['search']) ? sanitize($conn, $_GET['search']) : '';
 
+$loan_only = getSetting($conn, 'loan_only_mode') == '1';
 $where = "WHERE 1=1";
-if($filter_type && in_array($filter_type, ['Savings', 'Loan', 'FD', 'RD', 'MIS', 'DD'])) {
+if($loan_only) {
+    $where .= " AND a.account_type = 'Loan'";
+} elseif($filter_type && in_array($filter_type, ['Savings', 'Loan', 'FD', 'RD', 'MIS', 'DD'])) {
     $where .= " AND a.account_type = '$filter_type'";
 }
 
@@ -43,12 +46,16 @@ $result = mysqli_query($conn, $sql);
 
             <div class="bg-white border border-gray-200 rounded-lg p-1 hidden lg:flex items-center text-sm shadow-sm">
                 <a href="view.php" class="px-3 py-1.5 rounded-md <?= !$filter_type ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">All</a>
+                <?php if(!$loan_only): ?>
                 <a href="?type=Savings&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='Savings' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Savings</a>
+                <?php endif; ?>
                 <a href="?type=Loan&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='Loan' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Loans</a>
+                <?php if(!$loan_only): ?>
                 <a href="?type=FD&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='FD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">FDs</a>
                 <a href="?type=RD&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='RD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">RDs</a>
                 <a href="?type=MIS&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='MIS' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">MIS</a>
                 <a href="?type=DD&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-md <?= $filter_type=='DD' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50' ?>">Daily Dep..</a>
+                <?php endif; ?>
             </div>
             
             <a href="open.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">

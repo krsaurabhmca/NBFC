@@ -15,6 +15,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
     $name = sanitize($conn, $_POST['name']);
     $username = sanitize($conn, $_POST['username']);
     $role = sanitize($conn, $_POST['role']);
+    $branch_id = (int)$_POST['branch_id'];
     $password = $_POST['password'];
 
     $check = mysqli_query($conn, "SELECT id FROM users WHERE username = '$username'");
@@ -24,7 +25,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
         $error = "Password must be at least 6 characters long.";
     } else {
         $hash = password_hash($password, PASSWORD_BCRYPT);
-        $sql = "INSERT INTO users (name, username, password, role) VALUES ('$name', '$username', '$hash', '$role')";
+        $sql = "INSERT INTO users (name, username, password, role, branch_id) VALUES ('$name', '$username', '$hash', '$role', $branch_id)";
         
         if(mysqli_query($conn, $sql)) {
             $_SESSION['success'] = "New staff user added successfully.";
@@ -35,6 +36,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
         }
     }
 }
+
+$branches = mysqli_query($conn, "SELECT id, branch_name FROM branches ORDER BY branch_name ASC");
 
 require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
@@ -73,15 +76,26 @@ require_once '../includes/sidebar.php';
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Assigned Branch <span class="text-red-500">*</span></label>
+                <select name="branch_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <?php while($b = mysqli_fetch_assoc($branches)): ?>
+                        <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['branch_name']) ?></option>
+                    <?php endwhile; ?>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Staff will be linked to this regional operational hub.</p>
+            </div>
+            
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">System Role <span class="text-red-500">*</span></label>
                 <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                     <option value="staff" <?= (!isset($_POST['role']) || $_POST['role'] == 'staff') ? 'selected' : '' ?>>Branch Staff (Standard Access)</option>
                     <option value="admin" <?= isset($_POST['role']) && $_POST['role'] == 'admin' ? 'selected' : '' ?>>Administrator (Full Access)</option>
                     <option value="advisor" <?= isset($_POST['role']) && $_POST['role'] == 'advisor' ? 'selected' : '' ?>>Field Advisor / Staff (Wallet Access)</option>
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Staff handles daily accounts. Admins can configure settings. Advisors collect field deposits.</p>
             </div>
-            
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Temporary Password <span class="text-red-500">*</span></label>
                 <input type="password" name="password" required minlength="6" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">

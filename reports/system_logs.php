@@ -34,7 +34,7 @@ if(!empty($_GET['action'])) {
 
 $sql = "SELECT l.*, u.name as user_name 
         FROM system_logs l 
-        JOIN users u ON l.user_id = u.id 
+        LEFT JOIN users u ON l.user_id = u.id 
         $where 
         ORDER BY l.id DESC LIMIT 200";
 $logs = mysqli_query($conn, $sql);

@@ -92,34 +92,16 @@ if($is_quarter_day) {
     logCron("Not a quarterly day. Total accrued interest remains pending in 'interest_accrued' column.");
 }
 
-// 2. Identify and Fine Overdue Loan Accounts
-logCron("Checking Loan EMI Schedules for defaults...");
-$today = date('Y-m-d');
-$sql_loans = "SELECT ls.id, ls.emi_amount, s.penalty_percent, a.id as account_id 
-              FROM loan_schedules ls 
-              JOIN accounts a ON ls.account_id = a.id 
-              JOIN schemes s ON a.scheme_id = s.id 
-              WHERE ls.due_date < '$today' AND ls.status = 'Pending'";
-              
-$overdue_loans = mysqli_query($conn, $sql_loans);
-$loan_fines_count = 0;
-
-while($emi = mysqli_fetch_assoc($overdue_loans)) {
-    // If penalty_percent > 0, apply fine
-    if($emi['penalty_percent'] > 0) {
-        $fine = ($emi['emi_amount'] * $emi['penalty_percent']) / 100;
-        $sch_id = $emi['id'];
-        
-        // Update schedule
-        mysqli_query($conn, "UPDATE loan_schedules SET status = 'Overdue', fine_amount = fine_amount + $fine WHERE id = $sch_id");
-        
-        // Add fine to account balance (increasing debit)
-        $acc_id = $emi['account_id'];
-        mysqli_query($conn, "UPDATE accounts SET current_balance = current_balance - $fine WHERE id = $acc_id");
-        $loan_fines_count++;
-    }
+// 2. Identify and Fine Overdue Loan Accounts (Unified Logic)
+logCron("Synchronizing Loan Delinquencies...");
+$loan_acc_res = mysqli_query($conn, "SELECT id FROM accounts WHERE account_type = 'Loan' AND status IN ('active', 'defaulted')");
+$loan_sync_count = 0;
+while($l_acc = mysqli_fetch_assoc($loan_acc_res)) {
+    // This function handles both status updates (Pending -> Overdue) and Fixed Fine application
+    calculateAndUpdateFines($conn, $l_acc['id'], $today);
+    $loan_sync_count++;
 }
-logCron("Applied fines to $loan_fines_count overdue loan EMIs.");
+logCron("Successfully synchronized delinquency states for $loan_sync_count loan portfolios.");
 
 // 3. Mark Matured FD/RD/MIS accounts
 logCron("Checking Term Deposits for Maturity...");

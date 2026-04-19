@@ -2,6 +2,30 @@
 require_once '../includes/db.php';
 checkAuth();
 require_once '../includes/functions.php';
+
+// Handle Delete Member (BEFORE any HTML output)
+if(isset($_POST['delete_member'])) {
+    if($_SESSION['role'] !== 'admin') {
+        $_SESSION['error'] = "Unauthorized access.";
+    } else {
+        $mid = (int)$_POST['member_id'];
+        $check = mysqli_query($conn, "SELECT COUNT(*) as c FROM accounts WHERE member_id = $mid");
+        $count = mysqli_fetch_assoc($check)['c'];
+        
+        if($count > 0) {
+            $_SESSION['error'] = "Cannot delete member with existing accounts.";
+        } else {
+            if(mysqli_query($conn, "DELETE FROM members WHERE id = $mid")) {
+                $_SESSION['success'] = "Member deleted successfully.";
+                header("Location: list.php");
+                exit();
+            } else {
+                $_SESSION['error'] = "Error deleting member: " . mysqli_error($conn);
+            }
+        }
+    }
+}
+
 require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
 
@@ -13,6 +37,7 @@ if($search) {
 }
 
 $sql = "SELECT m.*, 
+        (SELECT COUNT(*) FROM accounts WHERE member_id = m.id) as total_accounts,
         (SELECT COUNT(*) FROM accounts WHERE member_id = m.id AND status != 'closed') as active_accounts 
         FROM members m $where ORDER BY id DESC";
 $result = mysqli_query($conn, $sql);
@@ -115,6 +140,14 @@ $result = mysqli_query($conn, $sql);
                                         <a href="../accounts/open.php?member_id=<?= $row['id'] ?>" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Open New Account">
                                             <i class="ph ph-folder-plus text-xl"></i>
                                         </a>
+                                        <?php if($_SESSION['role'] == 'admin' && $row['total_accounts'] == 0): ?>
+                                            <form method="POST" action="" onsubmit="return confirm('Are you sure you want to PERMANENTLY delete this member? This cannot be undone.')" class="inline">
+                                                <input type="hidden" name="member_id" value="<?= $row['id'] ?>">
+                                                <button type="submit" name="delete_member" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete Member">
+                                                    <i class="ph ph-trash text-xl"></i>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>

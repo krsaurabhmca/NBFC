@@ -149,11 +149,34 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_txn'])) {
     }
 }
 
+// Service-based filtering
+$svc_map = [
+    'Savings' => 'service_savings_enabled',
+    'Loan' => 'service_loan_enabled',
+    'FD' => 'service_fd_enabled',
+    'RD' => 'service_rd_enabled',
+    'MIS' => 'service_mis_enabled',
+    'DD' => 'service_dd_enabled'
+];
+$loan_only = getSetting($conn, 'loan_only_mode') == '1';
+$enabled_types = [];
+foreach($svc_map as $type => $setting) {
+    if(getSetting($conn, $setting) == '1') {
+        if($loan_only && $type != 'Loan') continue;
+        $enabled_types[] = "'$type'";
+    }
+}
+if(empty($enabled_types)) $enabled_types = ["'NONE'"];
+$enabled_clause = implode(',', $enabled_types);
+
 // Fetch Accounts for dropdown
 $accounts_list = mysqli_query($conn, "SELECT a.id, a.account_no, a.account_type, m.first_name, m.last_name 
                                      FROM accounts a 
                                      JOIN members m ON a.member_id = m.id 
-                                     WHERE a.status IN ('active', 'defaulted') ORDER BY m.first_name");
+                                     JOIN schemes s ON a.scheme_id = s.id
+                                     WHERE a.status IN ('active', 'defaulted') 
+                                     AND s.scheme_type IN ($enabled_clause)
+                                     ORDER BY m.first_name");
 
 $selected_acc = null;
 $loan_details = null;

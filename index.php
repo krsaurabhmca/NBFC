@@ -1,5 +1,5 @@
 <?php
-// index.php Dashboard
+// index.php - Loan System Dashboard
 require_once 'includes/db.php';
 checkAuth();
 
@@ -7,384 +7,238 @@ require_once 'includes/functions.php';
 require_once 'includes/header.php';
 require_once 'includes/sidebar.php';
 
-// Handle Date Filtering
+// Sync Overdue Status & Fines
+mysqli_query($conn, "UPDATE loan_schedules ls JOIN accounts a ON ls.account_id = a.id SET ls.status = 'Overdue' WHERE ls.status = 'Pending' AND ls.due_date < CURDATE()");
+$late_fine = (float)getSetting($conn, 'loan_late_fine_fixed') ?: 50.00;
+$grace = (int)getSetting($conn, 'loan_grace_days') ?: 3;
+mysqli_query($conn, "UPDATE loan_schedules ls SET ls.fine_amount = $late_fine WHERE ls.status = 'Overdue' AND ls.fine_amount <= 0 AND DATEDIFF(CURDATE(), ls.due_date) > $grace");
+
+// Handle Period Filtering
 $period = isset($_GET['period']) ? sanitize($conn, $_GET['period']) : 'today';
 $from_date = isset($_GET['from_date']) ? sanitize($conn, $_GET['from_date']) : '';
 $to_date = isset($_GET['to_date']) ? sanitize($conn, $_GET['to_date']) : '';
 
 $date_where = "DATE(transaction_date) = CURDATE()";
-$member_date_where = "DATE(created_at) = CURDATE()";
+$sched_where = "due_date = CURDATE()";
 
 if ($period == 'week') {
     $date_where = "DATE(transaction_date) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
-    $member_date_where = "DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+    $sched_where = "due_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
 } elseif ($period == 'month') {
     $date_where = "DATE(transaction_date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
-    $member_date_where = "DATE(created_at) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
-} elseif ($period == 'year') {
-    $date_where = "DATE(transaction_date) >= DATE_FORMAT(CURDATE(), '%Y-01-01')";
-    $member_date_where = "DATE(created_at) >= DATE_FORMAT(CURDATE(), '%Y-01-01')";
+    $sched_where = "due_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
 } elseif ($period == 'all') {
     $date_where = "1=1";
-    $member_date_where = "1=1";
+    $sched_where = "1=1";
 } elseif ($period == 'custom' && $from_date && $to_date) {
     $date_where = "DATE(transaction_date) BETWEEN '$from_date' AND '$to_date'";
-    $member_date_where = "DATE(created_at) BETWEEN '$from_date' AND '$to_date'";
+    $sched_where = "due_date BETWEEN '$from_date' AND '$to_date'";
 }
 
-// Fetch summary stats
-$stats = [
-    'total_members' => 0,
-    'total_deposits' => 0,
-    'total_loans' => 0,
-    'active_accounts' => 0,
-    'new_members' => 0
-];
+// 1. Portfolio Stats
+$total_members = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM members WHERE status = 'active'"))['c'];
+$active_loans = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM accounts WHERE status = 'active' AND account_type = 'Loan'"))['c'];
+$market_capital = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(principal_amount) as s FROM accounts WHERE status IN ('active','defaulted') AND account_type = 'Loan'"))['s'] ?? 0;
+$pending_approvals = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM accounts WHERE status = 'pending_approval'"))['c'];
 
-// Members (Total Active)
-$res = mysqli_query($conn, "SELECT COUNT(*) as c FROM members WHERE status = 'active'");
-$stats['total_members'] = mysqli_fetch_assoc($res)['c'];
+// 2. Performance Stats (Period Based)
+$disbursements = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) as s FROM transactions WHERE transaction_type = 'Loan' AND $date_where"))['s'] ?? 0;
+$collections = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) as s FROM transactions WHERE transaction_type IN ('EMI', 'Fine') AND $date_where"))['s'] ?? 0;
+$target_recovery = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(emi_amount + fine_amount) as s FROM loan_schedules WHERE $sched_where"))['s'] ?? 0;
+$npa_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINCT account_id) as c FROM loan_schedules WHERE status = 'Overdue'"))['c'];
 
-// New Members in Period
-$res = mysqli_query($conn, "SELECT COUNT(*) as c FROM members WHERE $member_date_where");
-$stats['new_members'] = mysqli_fetch_assoc($res)['c'];
-
-// Active Accounts (Total)
-$res = mysqli_query($conn, "SELECT COUNT(*) as c FROM accounts WHERE status = 'active'");
-$stats['active_accounts'] = mysqli_fetch_assoc($res)['c'];
-
-// Cumulative Deposits
-$res = mysqli_query($conn, "SELECT SUM(current_balance) as s FROM accounts WHERE account_type != 'Loan' AND status = 'active'");
-$stats['total_deposits'] = mysqli_fetch_assoc($res)['s'] ?? 0;
-
-// Cumulative Loans
-$res = mysqli_query($conn, "SELECT SUM(principal_amount) as s FROM accounts WHERE account_type = 'Loan' AND status IN ('active','defaulted')");
-$stats['total_loans'] = mysqli_fetch_assoc($res)['s'] ?? 0;
-
-// Transactions in Period
+// 3. Recent Activity
 $txn_where = " WHERE $date_where";
 if($_SESSION['role'] == 'advisor') {
     $txn_where .= " AND t.created_by = {$_SESSION['user_id']}";
 }
-$txn_sql = "SELECT t.*, a.account_no, m.first_name, m.last_name 
-            FROM transactions t 
-            JOIN accounts a ON t.account_id = a.id 
-            JOIN members m ON a.member_id = m.id 
-            $txn_where
-            ORDER BY t.id DESC LIMIT 5";
-$recent_txns = mysqli_query($conn, $txn_sql);
+$recent_txns = mysqli_query($conn, "SELECT t.*, a.account_no, m.first_name, m.last_name 
+                                     FROM transactions t 
+                                     JOIN accounts a ON t.account_id = a.id 
+                                     JOIN members m ON a.member_id = m.id 
+                                     $txn_where ORDER BY t.id DESC LIMIT 6");
 
-// Period Totals
-$period_deposits = 0; 
-$period_debts = 0; 
-
-$res_period = mysqli_query($conn, "SELECT t.transaction_type, SUM(t.amount) as s 
-                                   FROM transactions t 
-                                   JOIN accounts a ON t.account_id = a.id
-                                   WHERE $date_where GROUP BY t.transaction_type");
-while($rt = mysqli_fetch_assoc($res_period)) {
-    if(in_array($rt['transaction_type'], ['Deposit', 'EMI', 'Interest'])) {
-        $period_deposits += $rt['s'];
-    } elseif(in_array($rt['transaction_type'], ['Withdrawal', 'Account-Open'])) {
-        $period_debts += $rt['s']; 
-    }
-}
-
-// Advisor Performance in Period
-$advisor_wallet = 0;
-$advisor_period_collection = 0;
-if($_SESSION['role'] == 'advisor') {
-    $adv_id = $_SESSION['user_id'];
-    $adv_res = mysqli_query($conn, "SELECT wallet_balance FROM users WHERE id = $adv_id");
-    $advisor_wallet = mysqli_fetch_assoc($adv_res)['wallet_balance'] ?? 0;
-    
-    $adv_coll_res = mysqli_query($conn, "SELECT SUM(ABS(amount)) as s FROM wallet_transactions WHERE user_id = $adv_id AND transaction_type = 'Collection' AND $date_where");
-    $advisor_period_collection = mysqli_fetch_assoc($adv_coll_res)['s'] ?? 0;
-}
+$user_name = $_SESSION['name'] ?? 'Officer';
 ?>
 
-<div class="mb-8 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
-    <div class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-        <?php foreach(['today' => 'Today', 'week' => '7 Days', 'month' => 'This Month', 'year' => 'This Year', 'all' => 'All Time'] as $key => $label): ?>
-            <a href="?period=<?= $key ?>" class="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all <?= $period == $key ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-50 text-gray-400 hover:bg-gray-100' ?>">
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Loan Intelligence Dashboard</h1>
+        <p class="text-slate-500 font-medium">Monitoring portfolio health and regional debt recovery.</p>
+    </div>
+    <div class="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+        <?php foreach(['today' => 'Today', 'month' => 'Month', 'all' => 'All'] as $key => $label): ?>
+            <a href="?period=<?= $key ?>" class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all <?= $period == $key ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-50' ?>">
                 <?= $label ?>
             </a>
         <?php endforeach; ?>
     </div>
-    <form action="" method="GET" class="flex items-center gap-2">
-        <input type="hidden" name="period" value="custom">
-        <input type="date" name="from_date" value="<?= $from_date ?>" class="px-3 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500">
-        <span class="text-gray-300 text-xs font-bold">TO</span>
-        <input type="date" name="to_date" value="<?= $to_date ?>" class="px-3 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500">
-        <button type="submit" class="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md">
-            <i class="ph ph-magnifying-glass font-bold"></i>
-        </button>
-    </form>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <!-- Stat Cards (Enhanced) -->
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
-                <i class="ph ph-users-three"></i>
-            </div>
-            <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-widest">+<?= $stats['new_members'] ?> New</span>
+<?php if($_SESSION['role'] == 'admin' && $pending_approvals > 0): ?>
+<div class="mb-8 bg-amber-50 border border-amber-200 p-5 rounded-3xl flex items-center justify-between shadow-sm shadow-amber-100">
+    <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200">
+            <i class="ph ph-shield-warning text-2xl font-black"></i>
         </div>
         <div>
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Membership</p>
-            <h3 class="text-3xl font-black text-gray-800 tracking-tight"><?= number_format($stats['total_members']) ?></h3>
-            <p class="text-[10px] text-gray-400 mt-2 font-medium">Verified KYC Customers</p>
+            <h3 class="font-black text-amber-900 text-sm uppercase tracking-widest">Sanction Queue Active</h3>
+            <p class="text-amber-700 text-xs">There are <span class="font-black"><?= $pending_approvals ?> loan applications</span> awaiting administrative review and disbursement.</p>
         </div>
     </div>
-    
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl">
-                <i class="ph ph-folders"></i>
-            </div>
-            <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-full uppercase tracking-widest">Live Book</span>
-        </div>
-        <div>
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Portfolio Accounts</p>
-            <h3 class="text-3xl font-black text-gray-800 tracking-tight"><?= number_format($stats['active_accounts']) ?></h3>
-            <p class="text-[10px] text-gray-400 mt-2 font-medium">RD, FD, Savings & Loans</p>
-        </div>
-    </div>
-
-    <?php if($_SESSION['role'] == 'admin'): ?>
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow lg:col-span-1">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl">
-                <i class="ph ph-hand-coins"></i>
-            </div>
-            <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full uppercase tracking-widest">Total Inward</span>
-        </div>
-        <div>
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Liability Capital</p>
-            <h3 class="text-2xl font-black text-emerald-600 tracking-tighter truncate"><?= formatCurrency($stats['total_deposits']) ?></h3>
-            <p class="text-[10px] text-gray-400 mt-2 font-medium">Customer Deposits & Savings</p>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow lg:col-span-1">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl">
-                <i class="ph ph-briefcase"></i>
-            </div>
-            <span class="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-1 rounded-full uppercase tracking-widest">Active Assets</span>
-        </div>
-        <div>
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Outstanding Loans</p>
-            <h3 class="text-2xl font-black text-rose-600 tracking-tighter truncate"><?= formatCurrency($stats['total_loans']) ?></h3>
-            <p class="text-[10px] text-gray-400 mt-2 font-medium">Capital in Field / Recov. Due</p>
-        </div>
-    </div>
-    <?php endif; ?>
-</div>
-
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-    <div class="bg-gradient-to-br from-emerald-600 via-emerald-600 to-emerald-700 rounded-3xl p-8 text-white shadow-xl shadow-emerald-100 relative overflow-hidden group">
-        <div class="relative z-10">
-            <div class="flex items-center gap-2 mb-4">
-                <div class="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                <p class="text-emerald-100 text-[10px] font-black uppercase tracking-[0.2em] opacity-80"><?= $_SESSION['role'] == 'admin' ? "Live System Inflow (".ucfirst($period).")" : "Your Collection Target" ?></p>
-            </div>
-            <h3 class="text-4xl font-black tracking-tight mb-2"><?= formatCurrency($_SESSION['role'] == 'admin' ? $period_deposits : $advisor_period_collection) ?></h3>
-            <p class="text-emerald-100/60 text-xs font-medium">Total collections processed through verified channels for this timeframe.</p>
-        </div>
-        <i class="ph ph-arrow-circle-down-right text-[120px] text-white/10 absolute -right-4 -bottom-4 group-hover:scale-110 transition-transform duration-500"></i>
-    </div>
-    
-    <?php if($_SESSION['role'] == 'admin'): ?>
-    <div class="bg-gradient-to-br from-indigo-700 via-indigo-800 to-indigo-900 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden group">
-        <div class="relative z-10">
-            <div class="flex items-center gap-2 mb-4">
-                <div class="w-2 h-2 bg-rose-400 rounded-full"></div>
-                <p class="text-indigo-200 text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Outward Disbursement (<?= ucfirst($period) ?>)</p>
-            </div>
-            <h3 class="text-4xl font-black tracking-tight mb-2"><?= formatCurrency($period_debts) ?></h3>
-            <p class="text-indigo-200/60 text-xs font-medium">Total withdrawals and loan disbursals settled in current timeframe.</p>
-        </div>
-        <i class="ph ph-receipt text-[120px] text-white/10 absolute -right-4 -bottom-4 group-hover:scale-110 transition-transform duration-500"></i>
-    </div>
-    <?php endif; ?>
-</div>
-
-<?php if($_SESSION['role'] == 'advisor'): ?>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex items-center justify-between group hover:border-indigo-200 transition-all border-b-8 border-b-indigo-600">
-        <div>
-            <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Current Prepaid Wallet</p>
-            <h3 class="text-4xl font-black text-gray-800 tracking-tighter mb-2"><?= formatCurrency($advisor_wallet) ?></h3>
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Active for Collections</p>
-            </div>
-        </div>
-        <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-3xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-            <i class="ph ph-wallet-bold"></i>
-        </div>
-    </div>
-    
-    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex items-center justify-between group hover:border-emerald-200 transition-all border-b-8 border-b-emerald-600">
-        <div>
-            <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Today's Wallet Performance</p>
-            <h3 class="text-4xl font-black text-gray-800 tracking-tighter mb-2"><?= formatCurrency($advisor_today_collection) ?></h3>
-            <div class="flex items-center gap-2">
-                 <i class="ph ph-calendar-check text-emerald-600"></i>
-                 <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Updated for Session: <?= date('d M') ?></p>
-            </div>
-        </div>
-        <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl group-hover:bg-emerald-600 group-hover:text-white transition-all">
-            <i class="ph ph-chart-bar-bold"></i>
-        </div>
-    </div>
+    <a href="loans/list.php?status=pending_approval" class="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">Review Queue</a>
 </div>
 <?php endif; ?>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Main Content Left (Recent Txns) -->
-    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-800 text-lg">Recent Transactions</h3>
-            <a href="<?= APP_URL ?>transactions/process.php" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View All <i class="ph ph-arrow-right"></i></a>
+<!-- Primary KPIs -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group relative overflow-hidden">
+        <div class="relative z-10">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Market Capital</p>
+            <h3 class="text-2xl font-black text-slate-800 tracking-tight"><?= formatCurrency($market_capital) ?></h3>
+            <div class="mt-4 flex items-center gap-2">
+                <span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Active Assets</span>
+            </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider">
-                        <th class="px-6 py-4 font-medium">Transaction ID</th>
-                        <th class="px-6 py-4 font-medium">Member & A/C</th>
-                        <th class="px-6 py-4 font-medium">Type</th>
-                        <th class="px-6 py-4 font-medium">Amount</th>
-                        <th class="px-6 py-4 font-medium text-right">Date</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 text-sm">
-                    <?php if(mysqli_num_rows($recent_txns) > 0): ?>
+        <i class="ph ph-hand-coins text-8xl text-slate-50 absolute -right-4 -bottom-4 rotate-12 group-hover:rotate-0 transition-transform duration-500"></i>
+    </div>
+
+    <div class="bg-indigo-600 p-6 rounded-3xl shadow-xl shadow-indigo-100 text-white group relative overflow-hidden">
+        <div class="relative z-10">
+            <p class="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Target Recovery</p>
+            <h3 class="text-2xl font-black tracking-tight"><?= formatCurrency($target_recovery) ?></h3>
+            <div class="mt-4 flex items-center gap-2">
+                <span class="bg-white/20 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase"><?= ucfirst($period) ?> Goal</span>
+            </div>
+        </div>
+        <i class="ph ph-calendar-check text-8xl text-white/10 absolute -right-4 -bottom-4 rotate-12 group-hover:rotate-0 transition-transform duration-500"></i>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group relative overflow-hidden">
+        <div class="relative z-10">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Realized Collection</p>
+            <h3 class="text-2xl font-black text-emerald-600 tracking-tight"><?= formatCurrency($collections) ?></h3>
+            <div class="mt-4 flex items-center gap-2">
+                <?php $eff = ($target_recovery > 0) ? round(($collections/$target_recovery)*100) : 0; ?>
+                <span class="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-full uppercase"><?= $eff ?>% Efficiency</span>
+            </div>
+        </div>
+        <i class="ph ph-chart-line-up text-8xl text-slate-50 absolute -right-4 -bottom-4 rotate-12 group-hover:rotate-0 transition-transform duration-500"></i>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group relative overflow-hidden">
+        <div class="relative z-10">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Delinquent Units (NPA)</p>
+            <h3 class="text-2xl font-black text-rose-600 tracking-tight"><?= $npa_count ?> <span class="text-xs text-slate-400 font-bold uppercase">Accounts</span></h3>
+            <div class="mt-4 flex items-center gap-2">
+                <span class="bg-rose-100 text-rose-700 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Action Required</span>
+            </div>
+        </div>
+        <i class="ph ph-warning-octagon text-8xl text-slate-50 absolute -right-4 -bottom-4 rotate-12 group-hover:rotate-0 transition-transform duration-500"></i>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Transactions Flow -->
+    <div class="lg:col-span-8 space-y-6">
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-50 flex items-center justify-between">
+                <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest">Recent Credit Movements</h3>
+                <a href="reports/collection_report.php" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Full Ledger</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-50/50 text-slate-400 font-black uppercase tracking-widest text-[9px]">
+                        <tr>
+                            <th class="px-6 py-4">Status</th>
+                            <th class="px-6 py-4">Beneficiary</th>
+                            <th class="px-6 py-4">Type</th>
+                            <th class="px-6 py-4 text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
                         <?php while($txn = mysqli_fetch_assoc($recent_txns)): ?>
-                            <tr class="hover:bg-gray-50/50 transition-colors">
-                                <td class="px-6 py-4 font-medium text-gray-700"><?= htmlspecialchars($txn['transaction_id']) ?></td>
-                                <td class="px-6 py-4">
-                                    <div class="font-medium text-gray-800"><?= htmlspecialchars($txn['first_name'] . ' ' . $txn['last_name']) ?></div>
-                                    <div class="text-xs text-gray-500"><?= htmlspecialchars($txn['account_no']) ?></div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <?php
-                                        $color = 'gray';
-                                        if($txn['transaction_type'] == 'Deposit') $color = 'emerald';
-                                        if($txn['transaction_type'] == 'Withdrawal' || $txn['transaction_type'] == 'Loan') $color = 'rose';
-                                        if($txn['transaction_type'] == 'Interest') $color = 'blue';
-                                    ?>
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-<?= $color ?>-100 text-<?= $color ?>-700">
-                                        <?= htmlspecialchars($txn['transaction_type']) ?>
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 font-medium <?= in_array($txn['transaction_type'], ['Deposit','Interest']) ? 'text-emerald-600' : 'text-rose-600' ?>">
-                                    <?= in_array($txn['transaction_type'], ['Deposit','Interest']) ? '+' : '-' ?><?= formatCurrency($txn['amount']) ?>
-                                </td>
-                                <td class="px-6 py-4 text-right text-gray-500">
-                                    <?= date('d M Y, h:i A', strtotime($txn['transaction_date'])) ?>
-                                </td>
-                            </tr>
+                        <tr class="hover:bg-slate-50/50 transition-all">
+                            <td class="px-6 py-4">
+                                <div class="w-2 h-2 rounded-full <?= in_array($txn['transaction_type'], ['EMI', 'Fine']) ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500' ?>"></div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-slate-800"><?= $txn['first_name'] ?> <?= $txn['last_name'] ?></div>
+                                <div class="text-[10px] text-slate-400 font-mono"><?= $txn['account_no'] ?></div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded uppercase"><?= $txn['transaction_type'] ?></span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="font-black <?= in_array($txn['transaction_type'], ['EMI', 'Fine']) ? 'text-emerald-600' : 'text-rose-600' ?>">
+                                    <?= in_array($txn['transaction_type'], ['EMI', 'Fine']) ? '+' : '-' ?><?= formatCurrency($txn['amount']) ?>
+                                </div>
+                                <div class="text-[9px] text-slate-400"><?= date('h:i A', strtotime($txn['transaction_date'])) ?></div>
+                            </td>
+                        </tr>
                         <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No recent transactions found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                        <?php if(mysqli_num_rows($recent_txns) == 0): ?>
+                        <tr><td colspan="4" class="px-6 py-12 text-center text-slate-400 font-bold uppercase tracking-widest">No credit activity in this period</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Right Sidebar (Quick Actions & Portfolio) -->
-    <div class="space-y-6">
-        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-            <h3 class="font-black text-gray-800 text-sm uppercase tracking-widest mb-6 flex items-center gap-2">
-                 <i class="ph ph-lightning text-amber-500"></i> Operational Shortcuts
-            </h3>
-            <div class="grid grid-cols-2 gap-4">
-                <?php if($_SESSION['role'] == 'admin'): ?>
-                <a href="<?= APP_URL ?>members/add.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all group border border-emerald-100">
-                    <i class="ph ph-user-plus text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">New<br>Member</span>
-                </a>
-                <a href="<?= APP_URL ?>accounts/open.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all group border border-blue-100">
-                    <i class="ph ph-folder-plus text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">Open<br>Account</span>
-                </a>
-                <a href="<?= APP_URL ?>transactions/process.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white transition-all group col-span-2 border border-rose-100">
-                    <i class="ph ph-arrows-left-right text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-center">Process Transaction Entry</span>
-                </a>
-                <?php else: ?>
-                <a href="<?= APP_URL ?>advisor/collect.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all group border border-amber-100">
-                    <i class="ph ph-hand-coins text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">Collect<br>Deposit</span>
-                </a>
-                <a href="<?= APP_URL ?>advisor/wallet_history.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all group border border-indigo-100">
-                    <i class="ph ph-wallet text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-black uppercase tracking-tighter text-center leading-tight">Wallet<br>History</span>
-                </a>
-                <a href="<?= APP_URL ?>help/calculations.php" class="flex flex-col items-center justify-center p-4 rounded-2xl bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white transition-all group col-span-2 border border-sky-100">
-                    <i class="ph ph-calculator text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-center">Open Calculation Helper</span>
-                </a>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <?php if($_SESSION['role'] == 'admin'): ?>
-        <?php
-            // Simple product mix calculation
-            $mix_res = mysqli_query($conn, "SELECT account_type, COUNT(*) as c FROM accounts GROUP BY account_type");
-            $mix = []; $total_ac = 0;
-            while($m = mysqli_fetch_assoc($mix_res)) { $mix[$m['account_type']] = $m['c']; $total_ac += $m['c']; }
-        ?>
-        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-            <h3 class="font-black text-gray-800 text-sm uppercase tracking-widest mb-6">Portfolio Pulse</h3>
-            <div class="space-y-4">
-                <?php foreach(['Savings' => 'emerald', 'Loan' => 'rose', 'FD' => 'blue', 'RD' => 'indigo'] as $ptype => $pcolor): ?>
+    <!-- Portfolio & Sidebar -->
+    <div class="lg:col-span-4 space-y-6">
+        <div class="bg-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-slate-200 border-b-8 border-b-indigo-600">
+            <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6">Regional Distribution</h3>
+            <div class="space-y-6">
                 <div>
-                    <div class="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5 grayscale opacity-60">
-                        <span><?= $ptype ?></span>
-                        <span><?= isset($mix[$ptype]) ? round(($mix[$ptype]/$total_ac)*100) : 0 ?>%</span>
+                    <div class="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">
+                        <span>Sanctioned Capital</span>
+                        <span><?= formatCurrency($market_capital) ?></span>
                     </div>
-                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                        <div class="bg-<?= $pcolor ?>-500 h-full w-[<?= isset($mix[$ptype]) ? ($mix[$ptype]/$total_ac)*100 : 0 ?>%]"></div>
+                    <div class="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                        <div class="bg-indigo-400 h-full w-[100%]"></div>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                <div>
+                    <div class="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">
+                        <span>Principal Collected</span>
+                        <?php 
+                        $rec_p = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(principal_component) as s FROM loan_schedules WHERE status = 'Paid'"))['s'] ?? 0; 
+                        $p_per = ($market_capital > 0) ? round(($rec_p/$market_capital)*100) : 0;
+                        ?>
+                        <span><?= $p_per ?>%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                        <div class="bg-emerald-400 h-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" style="width: <?= $p_per ?>%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">
+                        <span>Interest Realized</span>
+                        <?php $rec_i = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(interest_component) as s FROM loan_schedules WHERE status = 'Paid'"))['s'] ?? 0; ?>
+                        <span><?= formatCurrency($rec_i) ?></span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                        <div class="bg-amber-400 h-full" style="width: 100%"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-3xl p-6 shadow-xl text-white">
-            <h3 class="font-black text-[10px] uppercase tracking-[0.2em] mb-4 text-slate-500">System Core V1.2</h3>
-            <ul class="space-y-3">
-                <li class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                        <span class="text-xs font-semibold text-slate-300">Environment</span>
-                    </div>
-                    <span class="text-[10px] font-black text-slate-500 uppercase">Production</span>
-                </li>
-                <li class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i class="ph ph-timer text-indigo-400"></i>
-                        <span class="text-xs font-semibold text-slate-300">Cron Status</span>
-                    </div>
-                    <span class="text-[10px] font-black text-rose-500 uppercase">Idle</span>
-                </li>
-                <li class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i class="ph ph-shield-check text-blue-400"></i>
-                        <span class="text-xs font-semibold text-slate-300">Encryption</span>
-                    </div>
-                    <span class="text-[10px] font-black text-slate-500 uppercase">Active</span>
-                </li>
-            </ul>
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Command Center</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <a href="loans/disburse.php" class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white transition-all group">
+                    <i class="ph ph-plus-circle text-2xl group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[9px] font-black uppercase tracking-widest">Apply</span>
+                </a>
+                <a href="loans/pay.php" class="p-4 bg-emerald-50 text-emerald-600 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all group">
+                    <i class="ph ph-hand-coins text-2xl group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[9px] font-black uppercase tracking-widest">Collect</span>
+                </a>
+            </div>
         </div>
-        <?php endif; ?>
     </div>
 </div>
 

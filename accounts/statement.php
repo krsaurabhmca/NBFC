@@ -116,12 +116,11 @@ require_once '../includes/sidebar.php';
         <table class="w-full text-left text-sm">
             <thead>
                 <tr class="text-gray-500 border-b-2 border-gray-200">
-                    <th class="py-3 font-semibold w-1/6">Date</th>
-                    <th class="py-3 font-semibold w-1/6">TXN ID</th>
-                    <th class="py-3 font-semibold pb-3 w-1/4">Particulars</th>
+                    <th class="py-3 font-semibold w-1/5">Date</th>
+                    <th class="py-3 font-semibold w-1/5">TXN ID</th>
+                    <th class="py-3 font-semibold pb-3 w-1/3">Particulars</th>
                     <th class="py-3 font-semibold text-right text-rose-600 w-1/6">Debit (Dr)</th>
                     <th class="py-3 font-semibold text-right text-emerald-600 w-1/6">Credit (Cr)</th>
-                    <th class="py-3 font-semibold text-right w-1/6">Balance</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -156,10 +155,6 @@ require_once '../includes/sidebar.php';
                             </td>
                             <td class="py-3 text-right font-medium text-emerald-600">
                                 <?= $is_credit ? formatCurrency(abs($t['amount'])) : '-' ?>
-                            </td>
-                            <td class="py-3 text-right font-bold text-gray-800 font-mono tracking-tight text-sm">
-                                <?= formatCurrency(abs($t['balance_after'])) ?>
-                                <?= $t['balance_after'] < 0 ? '<span class="text-[10px] text-rose-500 ml-0.5">Dr</span>' : '<span class="text-[10px] text-emerald-500 ml-0.5">Cr</span>' ?>
                             </td>
                         </tr>
                     <?php endwhile; ?>

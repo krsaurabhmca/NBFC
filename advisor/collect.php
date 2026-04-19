@@ -53,10 +53,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['collect_deposit'])) {
         $now = date('Y-m-d H:i:s');
         $txn_type = ($acc['account_type'] == 'Loan') ? 'EMI' : 'Deposit';
 
+        // Trigger fine update before collection to ensure late fees are captured
+        calculateAndUpdateFines($conn, $txn_account_id, date('Y-m-d'));
+
         // Update Account
-        $update_acc = mysqli_query($conn, "UPDATE accounts SET current_balance = $balance_after WHERE id = $txn_account_id");
+        $update_acc = mysqli_query($conn, "UPDATE accounts SET current_balance = current_balance + $amount WHERE id = $txn_account_id");
         
-        // If it's EMI, we need to update loan schedule as well (mirroring transactions/process.php logic)
+        $txn_id = 'TXN-' . time() . rand(100,999);
+
+        // If it's EMI, we need to update loan schedule as well
         if($txn_type == 'EMI') {
             $alloc_amount = $amount;
             $sch_res = mysqli_query($conn, "SELECT * FROM loan_schedules WHERE account_id = $txn_account_id AND status IN ('Pending', 'Overdue') ORDER BY due_date ASC");
@@ -64,7 +69,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['collect_deposit'])) {
                 $due = (float)$sch['emi_amount'] + (float)$sch['fine_amount'];
                 if($alloc_amount >= $due) {
                     $alloc_amount -= $due;
-                    mysqli_query($conn, "UPDATE loan_schedules SET status = 'Paid', paid_date = CURDATE() WHERE id = " . $sch['id']);
+                    mysqli_query($conn, "UPDATE loan_schedules SET status = 'Paid', paid_date = CURDATE(), transaction_id = '$txn_id' WHERE id = " . $sch['id']);
                 } else {
                     break;
                 }
@@ -77,9 +82,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['collect_deposit'])) {
         $insert_txn = mysqli_query($conn, $sql_txn);
         $core_txn_db_id = mysqli_insert_id($conn);
 
-        // Deduct from Advisor
-        $new_wallet_bal = $advisor_balance - $amount;
-        $update_wallet = mysqli_query($conn, "UPDATE users SET wallet_balance = $new_wallet_bal WHERE id = $advisor_id");
+        // Deduct from Advisor Wallet (Relative Update)
+        $update_wallet = mysqli_query($conn, "UPDATE users SET wallet_balance = wallet_balance - $amount WHERE id = $advisor_id");
+        
+        // Fetch new balance for tracing
+        $adv_bal_res = mysqli_query($conn, "SELECT wallet_balance FROM users WHERE id = $advisor_id");
+        $new_wallet_bal = mysqli_fetch_assoc($adv_bal_res)['wallet_balance'];
         
         // Wallet Trace
         $sql_wallet_txn = "INSERT INTO wallet_transactions (user_id, transaction_type, amount, balance_after, reference_id, description, created_by) 
@@ -103,13 +111,33 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['collect_deposit'])) {
     }
 }
 
-// Fetch Accounts for dropdown (DD and RD primarily as requested)
+// Service-based filtering
+$svc_map = [
+    'Savings' => 'service_savings_enabled',
+    'Loan' => 'service_loan_enabled',
+    'FD' => 'service_fd_enabled',
+    'RD' => 'service_rd_enabled',
+    'MIS' => 'service_mis_enabled',
+    'DD' => 'service_dd_enabled'
+];
+$loan_only = getSetting($conn, 'loan_only_mode') == '1';
+$enabled_types = [];
+foreach($svc_map as $type => $setting) {
+    if(getSetting($conn, $setting) == '1') {
+        if($loan_only && $type != 'Loan') continue;
+        $enabled_types[] = "'$type'";
+    }
+}
+if(empty($enabled_types)) $enabled_types = ["'NONE'"];
+$enabled_clause = implode(',', $enabled_types);
+
+// Fetch Accounts for dropdown
 $accounts_list = mysqli_query($conn, "SELECT a.id, a.account_no, a.account_type, m.first_name, m.last_name 
                                      FROM accounts a 
                                      JOIN members m ON a.member_id = m.id 
                                      JOIN schemes s ON a.scheme_id = s.id
                                      WHERE a.status IN ('active', 'defaulted') 
-                                     AND s.scheme_type IN ('DD', 'RD', 'Savings', 'Loan')
+                                     AND s.scheme_type IN ($enabled_clause)
                                      ORDER BY m.first_name");
 
 require_once '../includes/header.php';

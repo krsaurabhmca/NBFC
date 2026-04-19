@@ -24,6 +24,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_general'])) {
         'loan_late_fine_fixed' => (float)$_POST['loan_late_fine_fixed'],
         'loan_grace_days' => (int)$_POST['loan_grace_days'],
         'wallet_interest_rate' => (float)$_POST['wallet_interest_rate'],
+        'service_loan_enabled' => isset($_POST['service_loan_enabled']) ? '1' : '0',
+        'service_savings_enabled' => isset($_POST['service_savings_enabled']) ? '1' : '0',
+        'service_dd_enabled' => isset($_POST['service_dd_enabled']) ? '1' : '0',
+        'service_fd_enabled' => isset($_POST['service_fd_enabled']) ? '1' : '0',
+        'service_rd_enabled' => isset($_POST['service_rd_enabled']) ? '1' : '0',
+        'service_mis_enabled' => isset($_POST['service_mis_enabled']) ? '1' : '0',
+        'loan_only_mode' => isset($_POST['loan_only_mode']) ? '1' : '0',
     ];
     
     // Handle File Uploads
@@ -89,9 +96,14 @@ require_once '../includes/sidebar.php';
             <a href="general.php" class="block px-4 py-3 bg-indigo-50 text-indigo-700 font-semibold rounded-xl border border-indigo-100 flex items-center gap-3">
                 <i class="ph ph-buildings text-xl"></i> Bank Profile
             </a>
+            <?php 
+            $loan_only_active = getSetting($conn, 'loan_only_mode') == '1';
+            if(!$loan_only_active): 
+            ?>
             <a href="interest_rates.php" class="block px-4 py-3 text-gray-600 hover:bg-gray-50 font-medium rounded-xl transition-colors flex items-center gap-3 border border-transparent">
                 <i class="ph ph-percent text-xl"></i> Interest Rates
             </a>
+            <?php endif; ?>
             <a href="templates.php" class="block px-4 py-3 text-gray-600 hover:bg-gray-50 font-medium rounded-xl transition-colors flex items-center gap-3 border border-transparent">
                 <i class="ph ph-envelope-simple text-xl"></i> Notifications
             </a>
@@ -138,6 +150,71 @@ require_once '../includes/sidebar.php';
                         </div>
                     </div>
 
+                    <?php if(!$loan_only_active): ?>
+                    <!-- Service Management -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 border-b pb-2 mb-4 flex items-center gap-2">
+                            <i class="ph ph-list-checks text-indigo-500"></i> Service Management
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-4">
+                                <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">Enable/Disable Banking Products</p>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" name="service_loan_enabled" value="1" <?= getSetting($conn, 'service_loan_enabled') == '1' ? 'checked' : '' ?> class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                                        <span class="text-sm font-semibold text-gray-700">Loan Service</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" name="service_savings_enabled" value="1" <?= getSetting($conn, 'service_savings_enabled') == '1' ? 'checked' : '' ?> class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                                        <span class="text-sm font-semibold text-gray-700">Savings Account</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" name="service_dd_enabled" value="1" <?= getSetting($conn, 'service_dd_enabled') == '1' ? 'checked' : '' ?> class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                                        <span class="text-sm font-semibold text-gray-700">Daily Deposit</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" name="service_fd_enabled" value="1" <?= getSetting($conn, 'service_fd_enabled') == '1' ? 'checked' : '' ?> class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                                        <span class="text-sm font-semibold text-gray-700">Fixed Deposit</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" name="service_rd_enabled" value="1" <?= getSetting($conn, 'service_rd_enabled') == '1' ? 'checked' : '' ?> class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                                        <span class="text-sm font-semibold text-gray-700">Rec. Deposit</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" name="service_mis_enabled" value="1" <?= getSetting($conn, 'service_mis_enabled') == '1' ? 'checked' : '' ?> class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                                        <span class="text-sm font-semibold text-gray-700">MIS Scheme</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
+                                <i class="ph ph-shield-check text-indigo-200 text-8xl absolute -right-4 -bottom-4 rotate-12"></i>
+                                <h4 class="text-base font-bold text-indigo-900 flex items-center gap-2 mb-2">
+                                    <i class="ph ph-lightning"></i> Specialized Mode
+                                </h4>
+                                <p class="text-xs text-indigo-600 mb-4 leading-relaxed">Loan Only Mode will prioritize loan processing and hide all complex deposit/savings modules from advisors and staff.</p>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative inline-block w-12 h-6 transition duration-200 ease-in-out bg-gray-300 rounded-full cursor-pointer peer-checked:bg-indigo-600">
+                                        <input type="checkbox" name="loan_only_mode" value="1" <?= getSetting($conn, 'loan_only_mode') == '1' ? 'checked' : '' ?> class="absolute opacity-0 w-0 h-0 peer">
+                                        <span class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 peer-checked:translate-x-6"></span>
+                                    </div>
+                                    <span class="text-sm font-bold text-indigo-900 group-hover:text-indigo-700">Activate Loan Only Mode</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                        <!-- Minimal Mode for Loan Only -->
+                        <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
+                            <i class="ph ph-shield-check text-indigo-200 text-8xl absolute -right-4 -bottom-4 rotate-12"></i>
+                            <h4 class="text-base font-bold text-indigo-900 flex items-center gap-2 mb-2">
+                                <i class="ph ph-lightning"></i> System Mode: Loan Only
+                            </h4>
+                            <p class="text-xs text-indigo-600 leading-relaxed">Currently optimized for credit operations. Standard banking modules are suppressed.</p>
+                            <input type="hidden" name="loan_only_mode" value="1">
+                        </div>
+                    <?php endif; ?>
+
                     <!-- Loan Delinquency Settings -->
                     <div class="bg-rose-50 p-6 rounded-2xl border border-rose-100">
                         <h3 class="text-lg font-bold text-rose-800 flex items-center gap-2 mb-4">
@@ -171,12 +248,14 @@ require_once '../includes/sidebar.php';
                                 <input type="text" name="prefix_member" value="<?= htmlspecialchars(getSetting($conn, 'prefix_member')) ?>" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 uppercase">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Savings</label>
-                                <input type="text" name="prefix_savings" value="<?= htmlspecialchars(getSetting($conn, 'prefix_savings')) ?>" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 uppercase">
-                            </div>
-                            <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Loans</label>
                                 <input type="text" name="prefix_loan" value="<?= htmlspecialchars(getSetting($conn, 'prefix_loan')) ?>" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 uppercase">
+                            </div>
+                            
+                            <?php if(!$loan_only_active): ?>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Savings</label>
+                                <input type="text" name="prefix_savings" value="<?= htmlspecialchars(getSetting($conn, 'prefix_savings')) ?>" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 uppercase">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Fixed Deposit</label>
@@ -194,6 +273,7 @@ require_once '../includes/sidebar.php';
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Daily Deposit</label>
                                 <input type="text" name="prefix_dd" value="<?= htmlspecialchars(getSetting($conn, 'prefix_dd')) ?>" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 uppercase">
                             </div>
+                            <?php endif; ?>
                         </div>
                         <p class="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded border border-amber-100 inline-block">Note: Changing prefixes only applies to new accounts created from now on.</p>
                     </div>

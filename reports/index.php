@@ -170,6 +170,10 @@ require_once '../includes/sidebar.php';
                 <div class="lg:col-span-3 space-y-4">
                     <h4 class="font-semibold text-gray-500 uppercase tracking-widest text-xs border-b border-gray-100 pb-2">Portfolio Liability Distribution (Current Balances)</h4>
                     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <?php 
+                        $loan_only = getSetting($conn, 'loan_only_mode') == '1';
+                        if(!$loan_only): 
+                        ?>
                         <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
                              <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Savings</p>
                              <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['Savings'] ?? 0) ?></p>
@@ -189,6 +193,11 @@ require_once '../includes/sidebar.php';
                         <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
                              <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Daily (DD)</p>
                              <p class="font-bold text-gray-800"><?= formatCurrency($acc_balances['DD'] ?? 0) ?></p>
+                        </div>
+                        <?php endif; ?>
+                        <div class="bg-rose-50 p-4 rounded-xl border border-rose-100">
+                             <p class="text-[10px] text-rose-400 font-bold uppercase mb-1">Total Loan Book</p>
+                             <p class="font-bold text-rose-800"><?= formatCurrency(abs($acc_balances['Loan'] ?? 0)) ?></p>
                         </div>
                     </div>
                 </div>

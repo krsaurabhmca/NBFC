@@ -21,6 +21,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['open_account'])) {
     // Fetch Scheme Details
     $scheme_res = mysqli_query($conn, "SELECT * FROM schemes WHERE id = $scheme_id");
     if($scheme = mysqli_fetch_assoc($scheme_res)) {
+        $manual_interest_rate = isset($_POST['interest_rate']) ? (float)$_POST['interest_rate'] : (float)$scheme['interest_rate'];
+        
         if($amount < $scheme['minimum_amount'] && in_array($scheme['scheme_type'], ['Savings', 'FD', 'MIS', 'Loan'])) {
             $error = "Minimum amount required for this scheme is " . formatCurrency($scheme['minimum_amount']);
         } else {
@@ -79,20 +81,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['open_account'])) {
 
             if(!$error) {
                 mysqli_query($conn, "START TRANSACTION");
-                $sql = "INSERT INTO accounts (account_no, member_id, scheme_id, account_type, opening_balance, current_balance, principal_amount, installment_amount, tenure_months, opening_date, maturity_date, guarantor_name, guarantor_phone, photo_path, document_path, loan_interest_type, linked_savings_account) 
-                        VALUES ('$account_no', $member_id, $scheme_id, '$account_type', $opening_balance, $opening_balance, $principal_amount, $installment_amount, $tenure, '$opening_date', " . ($maturity_date ? "'$maturity_date'" : "NULL") . ", " . ($g_name ? "'$g_name'" : "NULL") . ", " . ($g_phone ? "'$g_phone'" : "NULL") . ", " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($doc_path ? "'$doc_path'" : "NULL") . ", '$loan_interest_type', $linked_savings_account)";
+                $sql = "INSERT INTO accounts (account_no, member_id, scheme_id, account_type, opening_balance, current_balance, principal_amount, installment_amount, tenure_months, interest_rate, opening_date, maturity_date, guarantor_name, guarantor_phone, photo_path, document_path, loan_interest_type, linked_savings_account) 
+                        VALUES ('$account_no', $member_id, $scheme_id, '$account_type', $opening_balance, $opening_balance, $principal_amount, $installment_amount, $tenure, $manual_interest_rate, '$opening_date', " . ($maturity_date ? "'$maturity_date'" : "NULL") . ", " . ($g_name ? "'$g_name'" : "NULL") . ", " . ($g_phone ? "'$g_phone'" : "NULL") . ", " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($doc_path ? "'$doc_path'" : "NULL") . ", '$loan_interest_type', $linked_savings_account)";
                 
                 if(mysqli_query($conn, $sql)) {
                 $account_id = mysqli_insert_id($conn);
                 
                 // If it's a loan, we should generate an EMI Schedule
                 if($account_type == 'Loan' && $tenure > 0) {
-                    $rate_monthly = ($scheme['interest_rate'] / 100) / 12;
+                    $rate_monthly = ($manual_interest_rate / 100) / 12;
                     if($loan_interest_type == 'Reducing') {
                         $emi = ($principal_amount * $rate_monthly * pow(1 + $rate_monthly, $tenure)) / (pow(1 + $rate_monthly, $tenure) - 1);
                     } else {
                         // Flat
-                        $total_int = $principal_amount * ($scheme['interest_rate'] / 100) * ($tenure / 12);
+                        $total_int = $principal_amount * ($manual_interest_rate / 100) * ($tenure / 12);
                         $emi = ($principal_amount + $total_int) / $tenure;
                     }
                     $emi = round($emi, 2);
@@ -182,8 +184,29 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['open_account'])) {
 // Fetch Members
 $members = mysqli_query($conn, "SELECT id, member_no, first_name, last_name, aadhar_no FROM members WHERE status = 'active' ORDER BY first_name ASC");
 
-// Fetch Schemes
-$schemes = mysqli_query($conn, "SELECT * FROM schemes WHERE status = 'active' ORDER BY scheme_type ASC");
+// Fetch Schemes (Respect Service Settings)
+$svc_map = [
+    'Savings' => 'service_savings_enabled',
+    'Loan' => 'service_loan_enabled',
+    'FD' => 'service_fd_enabled',
+    'RD' => 'service_rd_enabled',
+    'MIS' => 'service_mis_enabled',
+    'DD' => 'service_dd_enabled'
+];
+
+$loan_only = getSetting($conn, 'loan_only_mode') == '1';
+$enabled_types = [];
+foreach($svc_map as $type => $setting) {
+    if(getSetting($conn, $setting) == '1') {
+        if($loan_only && $type != 'Loan') continue;
+        $enabled_types[] = "'$type'";
+    }
+}
+
+if(empty($enabled_types)) $enabled_types = ["'NONE'"];
+$enabled_clause = implode(',', $enabled_types);
+
+$schemes = mysqli_query($conn, "SELECT * FROM schemes WHERE status = 'active' AND scheme_type IN ($enabled_clause) ORDER BY scheme_type ASC");
 $schemes_json = [];
 while($s = mysqli_fetch_assoc($schemes)) {
     $schemes_json[$s['id']] = $s;
@@ -263,6 +286,12 @@ require_once '../includes/sidebar.php';
                     <div id="tenureContainer">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tenure (Months) <span class="text-red-500">*</span></label>
                         <input type="number" min="1" max="120" name="tenure" id="tenureInput" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div id="interestRateContainer">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" id="rateLabel">Applied Interest Rate (%) <span class="text-red-500">*</span></label>
+                        <input type="number" step="0.01" name="interest_rate" id="interestRateInput" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                        <p class="text-[10px] text-gray-500 mt-1">Leave as default from scheme or override if needed.</p>
                     </div>
                 </div>
 
@@ -377,11 +406,13 @@ $('#schemeSelect').on('change', function() {
     }
     
     const scheme = schemesData[id];
+    title.innerHTML = `<i class="ph ph-info"></i> ${scheme.scheme_type} - ${scheme.scheme_name}`;
+    interest.innerHTML = `${scheme.interest_rate}%`;
+    document.getElementById('interestRateInput').value = scheme.interest_rate;
+    
     dynamicFields.classList.remove('hidden');
     submitBtn.disabled = false;
     
-    title.innerHTML = `<i class="ph ph-info"></i> ${scheme.scheme_type} Account Details`;
-    interest.innerText = `${scheme.interest_rate}% per annum`;
     minHint.innerText = `Minimum allowed: ₹${scheme.minimum_amount}`;
     amtInput.min = scheme.minimum_amount;
     

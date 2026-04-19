@@ -80,23 +80,31 @@ require_once '../includes/sidebar.php';
                             <?= date('d M Y', strtotime($u['created_at'])) ?>
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <?php if($u['role'] == 'advisor'): ?>
-                            <a href="recharge_wallet.php?id=<?= $u['id'] ?>" class="text-emerald-600 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 p-2 rounded inline-block transition mr-2" title="Recharge Wallet">
-                                <i class="ph ph-wallet text-lg"></i>
-                            </a>
-                            <?php endif; ?>
-                            <a href="edit.php?id=<?= $u['id'] ?>" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-2 rounded inline-block transition">
-                                <i class="ph ph-pencil-simple text-lg"></i>
-                            </a>
-                            <?php if($u['id'] != $_SESSION['user_id']): ?>
-                            <a href="index.php?delete=<?= $u['id'] ?>" onclick="return confirm('Are you sure you want to remove this staff access?')" class="text-rose-600 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 p-2 rounded inline-block transition ml-2">
-                                <i class="ph ph-trash text-lg"></i>
-                            </a>
-                            <?php else: ?>
-                            <button disabled class="text-gray-400 bg-gray-50 p-2 rounded inline-block cursor-not-allowed ml-2" title="Cannot delete yourself">
-                                <i class="ph ph-trash text-lg"></i>
-                            </button>
-                            <?php endif; ?>
+                            <div class="flex items-center justify-end gap-2">
+                                <?php if($u['id'] != $_SESSION['user_id']): ?>
+                                <a href="impersonate.php?id=<?= $u['id'] ?>" class="text-amber-600 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 p-2 rounded inline-block transition" title="Login As This User">
+                                    <i class="ph ph-user-switch text-lg"></i>
+                                </a>
+                                <?php endif; ?>
+
+                                <?php if($u['role'] == 'advisor'): ?>
+                                <a href="recharge_wallet.php?id=<?= $u['id'] ?>" class="text-emerald-600 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 p-2 rounded inline-block transition" title="Recharge Wallet">
+                                    <i class="ph ph-wallet text-lg"></i>
+                                </a>
+                                <?php endif; ?>
+                                <a href="edit.php?id=<?= $u['id'] ?>" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-2 rounded inline-block transition">
+                                    <i class="ph ph-pencil-simple text-lg"></i>
+                                </a>
+                                <?php if($u['id'] != $_SESSION['user_id']): ?>
+                                <a href="index.php?delete=<?= $u['id'] ?>" onclick="return confirm('Are you sure you want to remove this staff access?')" class="text-rose-600 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 p-2 rounded inline-block transition">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </a>
+                                <?php else: ?>
+                                <button disabled class="text-gray-400 bg-gray-50 p-2 rounded inline-block cursor-not-allowed" title="Cannot delete yourself">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endwhile; ?>
