@@ -46,9 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_member'])) {
         $error = "A member with Aadhar No ($aadhar_no) already exists.";
     } else {
         $member_no = generateSequenceNo($conn, 'MBR', 'members', 'member_no');
+        $branch_id = (int)$_SESSION['branch_id'];
         
-        $sql = "INSERT INTO members (member_no, first_name, last_name, dob, gender, phone, email, address, aadhar_no, pan_no, nominee_name, nominee_relation, photo_path, signature_path) 
-                VALUES ('$member_no', '$first_name', '$last_name', '$dob', '$gender', '$phone', '$email', '$address', '$aadhar_no', '$pan_no', '$nominee_name', '$nominee_relation', " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($signature_path ? "'$signature_path'" : "NULL") . ")";
+        $sql = "INSERT INTO members (member_no, branch_id, first_name, last_name, dob, gender, phone, email, address, aadhar_no, pan_no, nominee_name, nominee_relation, photo_path, signature_path) 
+                VALUES ('$member_no', $branch_id, '$first_name', '$last_name', '$dob', '$gender', '$phone', '$email', '$address', '$aadhar_no', '$pan_no', '$nominee_name', '$nominee_relation', " . ($photo_path ? "'$photo_path'" : "NULL") . ", " . ($signature_path ? "'$signature_path'" : "NULL") . ")";
                 
         if(mysqli_query($conn, $sql)) {
             $_SESSION['success'] = "Member Registration Successful! Member No: $member_no";

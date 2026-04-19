@@ -28,7 +28,7 @@ if($acc['account_type'] == 'Loan') {
 }
 
 // Recent Ledger
-$txns = mysqli_query($conn, "SELECT * FROM transactions WHERE account_id = $id ORDER BY transaction_date DESC LIMIT 10");
+$txns = mysqli_query($conn, "SELECT * FROM transactions WHERE account_id = $id AND (status IS NULL OR status != 'Cancelled') ORDER BY transaction_date DESC LIMIT 10");
 
 require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
@@ -246,12 +246,14 @@ require_once '../includes/sidebar.php';
                                     <td class="px-6 py-4 text-right font-black text-slate-900">
                                         <div class="flex items-center justify-end gap-3">
                                             <span><?= formatCurrency(abs($t['balance_after'])) ?></span>
-                                            <?php if($t['transaction_type'] == 'EMI' && $_SESSION['role'] == 'admin'): ?>
-                                                <a href="../loans/cancel_emi.php?txn_id=<?= $t['transaction_id'] ?>" 
-                                                   onclick="return confirm('WARNING: This will revert the EMI status to Pending, adjust the balance, and delete the receipt. Proceed?')"
+                                            <?php if(($t['status'] ?? '') != 'Cancelled' && $t['transaction_type'] == 'EMI' && $_SESSION['role'] == 'admin'): ?>
+                                                <a href="javascript:void(0)" 
+                                                   onclick="openCancelModal('<?= $t['transaction_id'] ?>', '<?= formatCurrency($t['amount']) ?>')"
                                                    class="text-rose-400 hover:text-rose-600 transition-colors" title="Cancel/Void Payment">
                                                     <i class="ph ph-trash"></i>
                                                 </a>
+                                            <?php elseif(($t['status'] ?? '') == 'Cancelled'): ?>
+                                                <i class="ph ph-prohibit text-rose-300" title="VOIDED: <?= htmlspecialchars($t['cancel_remarks'] ?? 'No remarks') ?>"></i>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -264,5 +266,71 @@ require_once '../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<!-- Cancellation Modal -->
+<div id="cancelModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all border border-white/20">
+        <div class="px-6 py-8">
+            <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
+                <i class="ph ph-warning-circle"></i>
+            </div>
+            <h3 class="text-xl font-black text-center text-gray-800 mb-2">Cancel EMI Receipt?</h3>
+            <p class="text-center text-gray-500 text-sm mb-8">This will void transaction <span id="modalTxnId" class="font-bold text-gray-800"></span> for <span id="modalAmount" class="font-bold text-gray-800"></span> and revert the installment to pending.</p>
+            
+            <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-1">Cancellation Reason <span class="text-rose-500">*</span></label>
+            <textarea id="cancelReason" placeholder="Enter reason for cancellation (required)..." class="w-full h-32 px-4 py-3 bg-gray-50 border-0 rounded-2xl text-sm focus:ring-2 focus:ring-rose-500 outline-none transition-all resize-none"></textarea>
+            
+            <div class="grid grid-cols-2 gap-4 mt-8">
+                <button onclick="closeCancelModal()" class="px-6 py-3 rounded-2xl text-sm font-bold text-gray-400 hover:bg-gray-100 transition-all">Go Back</button>
+                <button onclick="submitCancellation()" class="px-6 py-3 rounded-2xl text-sm font-bold bg-rose-600 text-white shadow-xl shadow-rose-200 hover:bg-rose-700 active:scale-95 transition-all">Confirm Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCancelTxnId = null;
+
+function openCancelModal(txnId, amount) {
+    currentCancelTxnId = txnId;
+    document.getElementById('modalTxnId').innerText = txnId;
+    document.getElementById('modalAmount').innerText = amount;
+    document.getElementById('cancelModal').classList.remove('hidden');
+    document.getElementById('cancelReason').value = '';
+    document.getElementById('cancelReason').focus();
+}
+
+function closeCancelModal() {
+    document.getElementById('cancelModal').classList.add('hidden');
+}
+
+function submitCancellation() {
+    const reason = document.getElementById('cancelReason').value.trim();
+    if (!reason) {
+        alert("Please provide a cancellation reason.");
+        return;
+    }
+    
+    // Create a form and submit it to cancel_emi.php
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '../loans/cancel_emi.php';
+    
+    const txnInput = document.createElement('input');
+    txnInput.type = 'hidden';
+    txnInput.name = 'txn_id';
+    txnInput.value = currentCancelTxnId;
+    form.appendChild(txnInput);
+    
+    const reasonInput = document.createElement('input');
+    reasonInput.type = 'hidden';
+    reasonInput.name = 'cancel_reason';
+    reasonInput.value = reason;
+    form.appendChild(reasonInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

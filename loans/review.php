@@ -2,11 +2,11 @@
 require_once '../includes/db.php';
 checkAuth();
 
-if($_SESSION['role'] !== 'admin') {
+if ($_SESSION['role'] !== 'admin') {
     die("Unauthorized access.");
 }
 
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 // Fetch Account + Member + Scheme + Branch
 $sql = "SELECT a.*, m.*, m.id as member_id, s.scheme_name, b.branch_name, u.name as staff_name 
         FROM accounts a 
@@ -18,7 +18,7 @@ $sql = "SELECT a.*, m.*, m.id as member_id, s.scheme_name, b.branch_name, u.name
 $res = mysqli_query($conn, $sql);
 $loan = mysqli_fetch_assoc($res);
 
-if(!$loan) {
+if (!$loan) {
     $_SESSION['error'] = "Loan application not found or already processed.";
     header("Location: list.php?status=pending_approval");
     exit();
@@ -28,135 +28,285 @@ if(!$loan) {
 $schedules = mysqli_query($conn, "SELECT * FROM loan_schedules WHERE account_id = $id ORDER BY installment_no ASC");
 
 require_once '../includes/header.php';
+// Hide Breadcrumbs for cleaner review
+echo '<style>.breadcrumb, .content-header { display: none !important; }</style>';
 require_once '../includes/sidebar.php';
 ?>
 
-<div class="max-w-6xl mx-auto space-y-6">
-    <div class="flex items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner">
-                <i class="ph ph-shield-warning"></i>
+<div class="max-w-[1200px] mx-auto space-y-8 pb-20">
+    <!-- Header: Ultra Compact -->
+    <div class="flex items-center justify-between bg-white px-6 py-4 rounded-xl border border-slate-100 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-600/10 text-indigo-600 rounded-lg flex items-center justify-center border border-indigo-100">
+                <i class="ph ph-shield-check text-xl"></i>
             </div>
             <div>
-                <h1 class="text-xl font-black text-slate-800 tracking-tight">Sanction Review: <?= $loan['account_no'] ?></h1>
-                <p class="text-slate-500 text-xs mt-0.5">Application Date: <?= date('d M, Y', strtotime($loan['opening_date'])) ?> &bull; Branch: <?= $loan['branch_name'] ?: 'N/A' ?></p>
+                <h1 class="text-lg font-black text-slate-800 tracking-tight">Final Review: <?= $loan['account_no'] ?></h1>
             </div>
         </div>
-        <div class="flex items-center gap-3">
-            <a href="approve.php?id=<?= $id ?>&action=reject" onclick="return confirm('Reject this application?')" class="px-6 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-black uppercase hover:bg-rose-600 hover:text-white transition-all border border-rose-100">Reject Application</a>
-            <a href="approve.php?id=<?= $id ?>&action=approve" class="px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2">
-                <i class="ph ph-shield-check text-lg"></i> Final Sanction & Disburse
-            </a>
+        <div class="flex items-center gap-2">
+            <a href="approve.php?id=<?= $id ?>&action=reject" onclick="return confirm('Reject application?')" class="px-4 py-2 text-rose-500 font-bold text-[10px] uppercase hover:bg-rose-50 rounded-lg transition-all">Cancel</a>
+            <button type="submit" form="sanctionForm" class="px-6 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Approve & Issue Loan</button>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- left: Member Profile -->
-        <div class="lg:col-span-4 space-y-6">
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="bg-slate-50 p-6 flex flex-col items-center">
-                    <div class="w-32 h-32 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-400 mb-4 border-2 border-white shadow-lg overflow-hidden">
-                        <?php if($loan['photo_path']): ?>
+    <form method="POST" action="approve.php" id="sanctionForm" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <input type="hidden" name="id" value="<?= $id ?>">
+        <input type="hidden" name="action" value="approve">
+
+        <!-- Left Column -->
+        <div class="lg:col-span-4 space-y-8">
+            <!-- High Density Member & Advisor Profile -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-lg border border-slate-100 overflow-hidden">
+                        <?php if ($loan['photo_path']): ?>
                             <img src="<?= APP_URL ?><?= $loan['photo_path'] ?>" class="w-full h-full object-cover">
                         <?php else: ?>
-                            <i class="ph ph-user text-6xl"></i>
+                            <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="ph ph-user"></i></div>
                         <?php endif; ?>
                     </div>
-                    <h2 class="text-lg font-black text-slate-800"><?= $loan['first_name'] ?> <?= $loan['last_name'] ?></h2>
-                    <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1"><?= $loan['member_no'] ?></p>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="flex justify-between border-b border-slate-50 pb-2">
-                        <span class="text-[10px] font-black text-slate-400 uppercase">Mobile No</span>
-                        <span class="text-xs font-bold text-slate-700"><?= $loan['phone'] ?></span>
-                    </div>
-                    <div class="flex justify-between border-b border-slate-50 pb-2">
-                        <span class="text-[10px] font-black text-slate-400 uppercase">Aadhaar No</span>
-                        <span class="text-xs font-bold text-slate-700"><?= $loan['aadhar_no'] ?: 'N/A' ?></span>
-                    </div>
-                    <div class="flex justify-between border-b border-slate-50 pb-2">
-                        <span class="text-[10px] font-black text-slate-400 uppercase">Nominee</span>
-                        <span class="text-xs font-bold text-slate-700"><?= $loan['nominee_name'] ?></span>
-                    </div>
-                    <div class="pt-2">
-                        <span class="text-[10px] font-black text-slate-400 uppercase block mb-1">Permanent Address</span>
-                        <p class="text-[11px] leading-relaxed text-slate-600"><?= $loan['address'] ?></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100">
-                <div class="flex items-center gap-2 mb-4 opacity-75">
-                    <i class="ph ph-briefcase"></i>
-                    <span class="text-[10px] font-black uppercase tracking-widest">Sourcing Details</span>
-                </div>
-                <div class="space-y-4">
                     <div>
-                        <span class="text-[10px] font-bold text-white/50 block uppercase">Submitted By</span>
-                        <p class="font-bold"><?= $loan['staff_name'] ?: 'System Admin' ?></p>
+                        <div class="text-sm font-black text-slate-800"><?= $loan['first_name'] ?> <?= $loan['last_name'] ?></div>
+                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">ID: <?= $loan['member_no'] ?></div>
                     </div>
-                    <div>
-                        <span class="text-[10px] font-bold text-white/50 block uppercase">Branch Office</span>
-                        <p class="font-bold"><?= $loan['branch_name'] ?: 'Main HO' ?></p>
+                </div>
+                
+                <div class="p-4 space-y-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Mobile</span>
+                            <span class="text-[11px] font-bold text-slate-700"><?= $loan['phone'] ?></span>
+                        </div>
+                        <div>
+                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Issue Date</span>
+                            <input type="date" name="disbursal_date" value="<?= date('Y-m-d') ?>" class="w-full bg-slate-50 border-0 p-0 text-[11px] font-bold text-indigo-600 outline-none">
+                        </div>
+                    </div>
+                    
+                    <div class="pt-3 border-t border-slate-50">
+                        <label class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Advisor: <span class="text-slate-700"><?= $loan['staff_name'] ?: 'Direct' ?></span></label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <span class="block text-[8px] text-slate-400 mb-1">Sanction %</span>
+                                <input type="number" step="0.01" name="disbursal_comm_pct" value="<?= $loan['disbursal_commission_percent'] ?>" class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-xs font-bold">
+                            </div>
+                            <div>
+                                <span class="block text-[8px] text-slate-400 mb-1">Recovery %</span>
+                                <input type="number" step="0.01" name="collection_comm_pct" value="<?= $loan['collection_commission_percent'] ?>" class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-xs font-bold">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right: Loan Particulars -->
-        <div class="lg:col-span-8 space-y-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                    <span class="text-[10px] font-black text-slate-400 uppercase block mb-1">Sanction Principal</span>
-                    <p class="text-xl font-black text-slate-800 tracking-tight"><?= formatCurrency($loan['principal_amount']) ?></p>
+        <!-- Right Column -->
+        <div class="lg:col-span-8 space-y-8">
+            <!-- High-Density Loan Configuration -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+                <div class="grid grid-cols-3 gap-6">
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Loan Amount (₹)</label>
+                        <input type="number" step="0.01" name="principal" id="principal" value="<?= $loan['principal_amount'] ?>" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-sm font-black text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Interest (%)</label>
+                        <input type="number" step="0.01" name="interest_rate" id="interest_rate" value="<?= $loan['interest_rate'] ?>" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-sm font-black text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Months</label>
+                        <input type="number" name="tenure" id="tenure" value="<?= $loan['tenure_months'] ?>" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-sm font-black text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
                 </div>
-                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                    <span class="text-[10px] font-black text-slate-400 uppercase block mb-1">Interest Rate</span>
-                    <p class="text-xl font-black text-indigo-600 tracking-tight"><?= $loan['interest_rate'] ?>% <span class="text-[10px] font-bold uppercase opacity-60">p.a</span></p>
+
+                <div class="grid grid-cols-3 gap-6 mt-4">
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Method</label>
+                        <select name="loan_interest_type" id="interest_type" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none">
+                            <option value="Flat" <?= $loan['loan_interest_type'] == 'Flat' ? 'selected' : '' ?>>Flat</option>
+                            <option value="Reducing" <?= $loan['loan_interest_type'] == 'Reducing' ? 'selected' : '' ?>>Reducing</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cycle</label>
+                        <select name="repayment_frequency" id="freqSelect" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none">
+                            <option value="Monthly" <?= $loan['repayment_frequency'] == 'Monthly' ? 'selected' : '' ?>>Monthly</option>
+                            <option value="Bi-Weekly" <?= $loan['repayment_frequency'] == 'Bi-Weekly' ? 'selected' : '' ?>>Bi-Weekly</option>
+                            <option value="Weekly" <?= $loan['repayment_frequency'] == 'Weekly' ? 'selected' : '' ?>>Weekly</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1" id="day1_container">
+                        <label id="day1_label" class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Due Date</label>
+                        <select name="repayment_day_1" id="day1_select" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none">
+                            <?php if ($loan['repayment_frequency'] == 'Weekly'): ?>
+                                <?php foreach (['1' => 'Monday', '2' => 'Tuesday', '3' => 'Wednesday', '4' => 'Thursday', '5' => 'Friday', '6' => 'Saturday', '7' => 'Sunday'] as $v => $n): ?>
+                                    <option value="<?= $v ?>" <?= $loan['repayment_day_1'] == $v ? 'selected' : '' ?>><?= $n ?></option>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <?php for ($i = 1; $i <= 28; $i++): ?>
+                                    <option value="<?= $i ?>" <?= $loan['repayment_day_1'] == $i ? 'selected' : '' ?>><?= $i ?></option>
+                                <?php endfor; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
                 </div>
-                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                    <span class="text-[10px] font-black text-slate-400 uppercase block mb-1">Tenure (Months)</span>
-                    <p class="text-xl font-black text-slate-800 tracking-tight"><?= $loan['tenure_months'] ?></p>
+                
+                <div class="mt-4 <?= $loan['repayment_frequency'] == 'Bi-Weekly' ? '' : 'hidden' ?>" id="day2_container">
+                    <label class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Second Due Date</label>
+                    <select name="repayment_day_2" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none">
+                        <?php for ($i = 1; $i <= 28; $i++): ?>
+                            <option value="<?= $i ?>" <?= $loan['repayment_day_2'] == $i ? 'selected' : '' ?>>Date: <?= $i ?></option>
+                        <?php endfor; ?>
+                    </select>
                 </div>
-                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                    <span class="text-[10px] font-black text-slate-400 uppercase block mb-1">Interest Type</span>
-                    <p class="text-xl font-black text-slate-800 tracking-tight"><?= $loan['loan_interest_type'] ?></p>
+
+                <!-- Ultra Slim Summary Bar -->
+                <div class="mt-4 bg-slate-900 rounded-lg p-3 flex items-center justify-around text-white shadow-md relative overflow-hidden">
+                    <div class="text-center">
+                        <div class="text-[7px] uppercase tracking-widest text-indigo-300">EMI</div>
+                        <div class="text-lg font-black tracking-tight" id="projEMI">₹ 0</div>
+                    </div>
+                    <div class="text-center border-l border-white/5 pl-4">
+                        <div class="text-[7px] uppercase tracking-widest text-white/40">Interest</div>
+                        <div class="text-xs font-bold" id="projInt">₹ 0</div>
+                    </div>
+                    <div class="text-center border-l border-white/5 pl-4">
+                        <div class="text-[7px] uppercase tracking-widest text-white/40">Payable</div>
+                        <div class="text-xs font-black text-emerald-400" id="projTotal">₹ 0</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Schedule -->
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Proposed EMI Schedule</h3>
-                    <span class="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">Monthly EMI: <?= formatCurrency($loan['installment_amount']) ?></span>
+                <!-- Action Strip -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-3">
+                    <div class="flex items-center gap-3 bg-amber-50/50 p-2 rounded-lg border border-amber-100 mb-3">
+                        <i class="ph ph-shield-check text-amber-500 text-sm"></i>
+                        <p class="text-[9px] text-amber-800 font-bold uppercase tracking-tighter">Sanction Audit Enabled</p>
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                        Final Approve & Issue
+                    </button>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-[11px] border-collapse">
-                        <thead>
-                            <tr class="text-slate-400 font-bold uppercase border-b border-slate-50">
-                                <th class="px-6 py-3">Inst. #</th>
-                                <th class="px-6 py-3">Due Date</th>
-                                <th class="px-6 py-3">Principal</th>
-                                <th class="px-6 py-3">Interest</th>
-                                <th class="px-6 py-3">Total EMI</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-50">
-                            <?php while($s = mysqli_fetch_assoc($schedules)): ?>
-                            <tr class="hover:bg-slate-50/50 transition-colors">
-                                <td class="px-6 py-3 font-mono font-bold text-slate-400"><?= str_pad($s['installment_no'], 2, '0', STR_PAD_LEFT) ?></td>
-                                <td class="px-6 py-3 font-bold text-slate-700"><?= date('d M, Y', strtotime($s['due_date'])) ?></td>
-                                <td class="px-6 py-3 text-slate-600"><?= formatCurrency($s['principal_component']) ?></td>
-                                <td class="px-6 py-3 text-slate-600"><?= formatCurrency($s['interest_component']) ?></td>
-                                <td class="px-6 py-3 font-black text-indigo-600"><?= formatCurrency($s['emi_amount']) ?></td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
+
+                <!-- Schedule View -->
+                <div class="bg-white rounded-lg shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="px-8 py-5 border-b border-slate-50">
+                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                            <i class="ph ph-list-numbers text-indigo-500"></i> Payment Plan
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto max-h-[300px]">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr
+                                    class="text-slate-400 font-bold uppercase border-b border-slate-50 bg-slate-50/50 sticky top-0">
+                                    <th class="px-8 py-3 w-16">No.</th>
+                                    <th class="px-8 py-3">Due Date</th>
+                                    <th class="px-8 py-3 text-right">EMI Amount</th>
+                                    <th class="px-8 py-3 text-right">Principal + Interest</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                <?php mysqli_data_seek($schedules, 0); ?>
+                                <?php while ($s = mysqli_fetch_assoc($schedules)): ?>
+                                    <tr class="hover:bg-slate-50/50 transition-colors">
+                                        <td class="px-8 py-4 font-mono font-bold text-slate-400"><?= $s['installment_no'] ?></td>
+                                        <td class="px-8 py-4">
+                                            <div class="font-bold text-slate-800"><?= date('d M, Y', strtotime($s['due_date'])) ?></div>
+                                            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter"><?= date('l', strtotime($s['due_date'])) ?></div>
+                                        </td>
+                                        <td class="px-8 py-4 text-right font-black text-indigo-600 text-sm">
+                                            <?= formatCurrency($s['emi_amount']) ?>
+                                        </td>
+                                        <td class="px-8 py-4 text-right text-[10px] text-slate-500 font-medium">
+                                            <span class="text-slate-400 italic">P:</span> <?= formatCurrency($s['principal_component']) ?> 
+                                            <span class="mx-1 text-slate-200">|</span> 
+                                            <span class="text-slate-400 italic">I:</span> <?= formatCurrency($s['interest_component']) ?>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
+    </form>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const princEl = document.getElementById('principal');
+        const rateEl = document.getElementById('interest_rate');
+        const tenureEl = document.getElementById('tenure');
+        const typeEl = document.getElementById('interest_type');
+
+        function updateProjection() {
+            const p = parseFloat(princEl.value) || 0;
+            const r = parseFloat(rateEl.value) || 0;
+            const t = parseInt(tenureEl.value) || 0;
+            const type = document.getElementById('interest_type').value;
+            const freq = document.getElementById('freqSelect').value;
+
+            if (p > 0 && r > 0 && t > 0) {
+                let total_installments = t;
+                if (freq === 'Weekly') total_installments = t * 4;
+                else if (freq === 'Bi-Weekly') total_installments = t * 2;
+
+                let emi = 0;
+                let total_int = 0;
+                if (type === 'Reducing') {
+                    const r_monthly = (r / 100) / 12;
+                    const total_payable = ((p * r_monthly * Math.pow(1 + r_monthly, t)) / (Math.pow(1 + r_monthly, t) - 1)) * t;
+                    emi = total_payable / total_installments;
+                    total_int = total_payable - p;
+                } else {
+                    total_int = p * (r / 100) * (t / 12);
+                    emi = (p + total_int) / total_installments;
+                }
+
+                const format = (val) => '₹ ' + val.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+
+                document.getElementById('projEMI').innerText = format(emi);
+                document.getElementById('projInt').innerText = format(total_int);
+                document.getElementById('projTotal').innerText = format(p + total_int);
+            }
+        }
+
+        [princEl, rateEl, tenureEl, document.getElementById('interest_type'), document.getElementById('freqSelect')].forEach(el => {
+            if (el) el.addEventListener('input', updateProjection);
+        });
+
+        document.getElementById('freqSelect').addEventListener('change', function () {
+            const val = this.value;
+            const d1_cont = document.getElementById('day1_container');
+            const d2_cont = document.getElementById('day2_container');
+            const d1_label = document.getElementById('day1_label');
+            const d1_select = document.getElementById('day1_select');
+
+            if (val === 'Weekly') {
+                d1_label.innerText = 'Collection Day (Weekly)';
+                d1_select.innerHTML = '<option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="7">Sunday</option>';
+                d2_cont.classList.add('hidden');
+            } else if (val === 'Bi-Weekly') {
+                d1_label.innerText = 'First Due Date';
+                let opts = ''; for (let i = 1; i <= 28; i++) opts += `<option value="${i}" ${i == 1 ? 'selected' : ''}>Date: ${i}</option>`;
+                d1_select.innerHTML = opts;
+                d2_cont.classList.remove('hidden');
+            } else {
+                d1_label.innerText = 'EMI Due Date';
+                let opts = ''; for (let i = 1; i <= 28; i++) opts += `<option value="${i}" ${i == 5 ? 'selected' : ''}>Date: ${i}</option>`;
+                d1_select.innerHTML = opts;
+                d2_cont.classList.add('hidden');
+            }
+            updateProjection();
+        });
+
+        updateProjection();
+    });
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

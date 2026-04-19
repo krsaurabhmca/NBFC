@@ -86,9 +86,9 @@ if(session_status() !== PHP_SESSION_ACTIVE) session_start();
         }
         
         /* Card refinements */
-        .bg-white.rounded-2xl {
-            border-radius: 0.75rem !important;
-            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+        .bg-white.rounded-2xl, .bg-white.rounded-xl, .rounded-[2rem], .rounded-[2.5rem], .rounded-3xl {
+            border-radius: 0.5rem !important;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
         }
         .p-8 { padding: 1.25rem !important; }
         .p-6, .p-5 { padding: 1rem !important; }

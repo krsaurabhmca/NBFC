@@ -11,7 +11,7 @@ $is_local = (php_sapi_name() == 'cli' || $_SERVER['HTTP_HOST'] == 'localhost' ||
 $config_file = __DIR__ . '/db_credentials.php';
 
 if ($is_local) {
-    $host = 'localhost';
+    $host = '127.0.0.1';
     $user = 'root';
     $pass = '';
     $dbname = 'nbfc';

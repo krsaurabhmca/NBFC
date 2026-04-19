@@ -3,14 +3,14 @@ require_once '../includes/db.php';
 require_once '../includes/functions.php';
 checkAuth();
 
-if($_SESSION['role'] !== 'admin') {
-    $_SESSION['error'] = "Access Denied. Admins only.";
+if(!in_array($_SESSION['role'], ['admin', 'staff'])) {
+    $_SESSION['error'] = "Access Denied. Unauthorized access.";
     header("Location: ../index.php");
     exit();
 }
 
 // Handle User Deletion/Status toggle if needed
-if(isset($_GET['delete']) && $_GET['delete'] != $_SESSION['user_id']) {
+if(isset($_GET['delete']) && $_GET['delete'] != $_SESSION['user_id'] && $_SESSION['role'] == 'admin') {
     $del_id = (int)$_GET['delete'];
     mysqli_query($conn, "DELETE FROM users WHERE id = $del_id");
     $_SESSION['success'] = "User removed successfully.";
@@ -18,7 +18,11 @@ if(isset($_GET['delete']) && $_GET['delete'] != $_SESSION['user_id']) {
     exit();
 }
 
-$sql = "SELECT * FROM users ORDER BY id DESC";
+$sql = "SELECT u.*, b.branch_name 
+        FROM users u 
+        LEFT JOIN branches b ON u.branch_id = b.id 
+        WHERE 1=1 " . getBranchWhere('u', false) . "
+        ORDER BY u.id DESC";
 $users = mysqli_query($conn, $sql);
 
 require_once '../includes/header.php';
@@ -46,9 +50,9 @@ require_once '../includes/sidebar.php';
                 <thead class="bg-gray-50 text-gray-600 border-b border-gray-100">
                     <tr>
                         <th class="px-6 py-4 font-semibold">User</th>
-                        <th class="px-6 py-4 font-semibold">Email / Login</th>
+                        <th class="px-6 py-4 font-semibold">Login / ID</th>
+                        <th class="px-6 py-4 font-semibold">Branch</th>
                         <th class="px-6 py-4 font-semibold">System Role</th>
-                        <th class="px-6 py-4 font-semibold">Created On</th>
                         <th class="px-6 py-4 font-semibold text-right">Actions</th>
                     </tr>
                 </thead>
@@ -72,12 +76,14 @@ require_once '../includes/sidebar.php';
                             <?= htmlspecialchars($u['username']) ?>
                         </td>
                         <td class="px-6 py-4">
-                            <span class="px-3 py-1 text-xs font-semibold rounded-full <?= $u['role'] == 'admin' ? 'bg-purple-100 text-purple-700' : ($u['role'] == 'advisor' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700') ?>">
-                                <?= strtoupper($u['role']) ?>
+                            <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                <i class="ph ph-buildings mr-1"></i> <?= htmlspecialchars($u['branch_name'] ?? 'Main Branch') ?>
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-gray-500">
-                            <?= date('d M Y', strtotime($u['created_at'])) ?>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 text-[10px] font-black tracking-widest uppercase rounded-full <?= $u['role'] == 'admin' ? 'bg-purple-100 text-purple-700' : ($u['role'] == 'advisor' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700') ?>">
+                                <?= $u['role'] ?>
+                            </span>
                         </td>
                         <td class="px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-2">

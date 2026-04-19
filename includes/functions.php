@@ -58,6 +58,14 @@ function formatCurrency($amount) {
     return '₹ ' . number_format($amount, 2);
 }
 
+function getBranchWhere($table_alias = '', $is_first_condition = true) {
+    if (($_SESSION['role'] ?? '') == 'admin') return "";
+    $branch_id = (int)($_SESSION['branch_id'] ?? 0);
+    $prefix = $table_alias ? "$table_alias." : "";
+    $condition = " {$prefix}branch_id = $branch_id ";
+    return $is_first_condition ? " WHERE $condition " : " AND $condition ";
+}
+
 function logAction($conn, $user_id, $action, $details = '') {
     // Create table if not exists (Ensure robustness)
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS `system_logs` (
@@ -112,4 +120,100 @@ function calculateAndUpdateFines($conn, $account_id, $as_of_date = null) {
              mysqli_query($conn, "UPDATE loan_schedules SET status = '$new_status', fine_amount = $new_fine WHERE id = " . $sch['id']);
         }
     }
+}
+
+function generateLoanSchedules($conn, $account_id, $principal, $interest_rate, $tenure_months, $disbursal_date, $frequency = 'Monthly', $day1 = 1, $day2 = 15, $interest_type = 'Flat') {
+    // 1. Delete existing schedules
+    mysqli_query($conn, "DELETE FROM loan_schedules WHERE account_id = $account_id");
+
+    // 2. Determine Total Installments
+    $total_installments = $tenure_months;
+    if ($frequency == 'Weekly') $total_installments = $tenure_months * 4;
+    elseif ($frequency == 'Bi-Weekly') $total_installments = $tenure_months * 2;
+
+    $rate_annual = ($interest_rate / 100);
+    
+    // 3. Calculate EMI (Approximation for non-monthly if reducing, exact for flat)
+    // We treat everything as "Total Interest / Total Installments" for Simplicity (Common in NBFC)
+    // For Reducing, we calculate the monthly EMI first then divide.
+    $rate_monthly = $rate_annual / 12;
+    if($interest_type == 'Reducing') {
+        $monthly_emi = ($principal * $rate_monthly * pow(1 + $rate_monthly, $tenure_months)) / (pow(1 + $rate_monthly, $tenure_months) - 1);
+        $total_payable = $monthly_emi * $tenure_months;
+    } else {
+        $total_int = $principal * $rate_annual * ($tenure_months / 12);
+        $total_payable = $principal + $total_int;
+    }
+    
+    $emi = round($total_payable / $total_installments, 2);
+    $total_interest_accumulated = round($total_payable - $principal, 2);
+    
+    $rem_principal = $principal;
+    $rem_interest = $total_interest_accumulated;
+
+    $current_date = strtotime($disbursal_date);
+    
+    for($i = 1; $i <= $total_installments; $i++) {
+        // Calculate Next Due Date based on Frequency
+        if ($frequency == 'Weekly') {
+            // Find next fixed day (1=Mon, 7=Sun)
+            $target_day_name = ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][$day1];
+            $d_str = date('Y-m-d', $current_date);
+            $final_due_date = date('Y-m-d', strtotime("next $target_day_name", strtotime($d_str . " + " . (($i-1)*7) . " days")));
+        } elseif ($frequency == 'Bi-Weekly') {
+            // 2 Dates per month (e.g. 1st and 15th)
+            $month_idx = floor(($i - 1) / 2);
+            $is_second = ($i % 2 == 0);
+            $target_day = $is_second ? $day2 : $day1;
+            
+            $temp_date = date('Y-m-d', strtotime($disbursal_date . " + $month_idx months"));
+            $parts = explode('-', $temp_date);
+            $final_due_date = $parts[0].'-'.$parts[1].'-'.str_pad($target_day, 2, '0', STR_PAD_LEFT);
+        } else {
+            // Monthly
+            $d_date = date('Y-m-d', strtotime($disbursal_date . " + $i months"));
+            $parts = explode('-', $d_date);
+            $final_due_date = $parts[0].'-'.$parts[1].'-'.str_pad($day1, 2, '0', STR_PAD_LEFT);
+        }
+
+        // Components (Simplified: Linear interest distribution for predictable collections)
+        $prin_comp = round($principal / $total_installments, 2);
+        $int_comp = round($total_interest_accumulated / $total_installments, 2);
+        
+        // Correction for last installment
+        if ($i == $total_installments) {
+            $prin_comp = $rem_principal;
+            $int_comp = $rem_interest;
+        } else {
+            $rem_principal -= $prin_comp;
+            $rem_interest -= $int_comp;
+        }
+
+        $emi_adj = $prin_comp + $int_comp;
+        
+        $sql_sch = "INSERT INTO loan_schedules (account_id, installment_no, due_date, emi_amount, principal_component, interest_component, status) 
+                    VALUES ($account_id, $i, '$final_due_date', $emi_adj, $prin_comp, $int_comp, 'Pending')";
+        mysqli_query($conn, $sql_sch);
+    }
+    
+    // Update Account
+    $sql_upd = "UPDATE accounts SET 
+                current_balance = -$total_payable, 
+                installment_amount = $emi, 
+                principal_amount = $principal,
+                tenure_months = $tenure_months,
+                interest_rate = $interest_rate,
+                repayment_frequency = '$frequency',
+                repayment_day_1 = $day1,
+                repayment_day_2 = $day2,
+                loan_interest_type = '$interest_type'
+                WHERE id = $account_id";
+    mysqli_query($conn, $sql_upd);
+    
+    return [
+        'emi' => $emi,
+        'total_payable' => $total_payable,
+        'total_interest' => $total_interest_accumulated,
+        'installments' => $total_installments
+    ];
 }

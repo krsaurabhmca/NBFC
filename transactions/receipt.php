@@ -60,8 +60,12 @@ if(!$txn) {
                         <span class="text-6xl font-black text-rose-600 border-8 border-rose-600 px-4 py-2 rounded-2xl tracking-widest whitespace-nowrap">DUPLICATE</span>
                     </div>
                     <span class="bg-rose-50 text-rose-600 font-bold text-[10px] px-2 py-1 rounded uppercase tracking-widest border border-rose-200">Duplicate Copy</span>
-                <?php else: ?>
                     <span class="bg-gray-100 text-gray-800 font-mono text-xs px-2 py-1 rounded font-bold border border-gray-200"><?= $txn['transaction_id'] ?></span>
+                <?php endif; ?>
+                <?php if(isset($txn['status']) && $txn['status'] == 'Cancelled'): ?>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.2] -rotate-12 z-[50]">
+                        <span class="text-6xl font-black text-rose-600 border-8 border-rose-600 px-4 py-2 rounded-2xl tracking-widest whitespace-nowrap uppercase">VOID / CANCELLED</span>
+                    </div>
                 <?php endif; ?>
             </div>
 
@@ -125,9 +129,15 @@ if(!$txn) {
                     </span>
                 </div>
                 <div class="grid grid-cols-2">
-                    <span class="text-gray-500 font-medium">Narration</span>
                     <span class="text-right text-gray-600 italic text-xs max-w-[200px] ml-auto">"<?= htmlspecialchars($txn['description']) ?>"</span>
                 </div>
+                <?php if(isset($txn['status']) && $txn['status'] == 'Cancelled'): ?>
+                <div class="grid grid-cols-1 bg-rose-50 p-3 rounded-lg border border-rose-100 mt-2">
+                    <span class="text-[10px] text-rose-500 font-black uppercase tracking-widest mb-1">Cancellation Remarks</span>
+                    <span class="text-xs text-rose-900 font-bold"><?= htmlspecialchars($txn['cancel_remarks'] ?? 'No reason specified') ?></span>
+                    <div class="mt-2 text-[9px] text-rose-400">Cancelled on <?= date('d/m/Y h:i A', strtotime($txn['cancelled_at'])) ?></div>
+                </div>
+                <?php endif; ?>
             </div>
 
             <div class="mt-8 pt-6 border-t border-dashed border-gray-300">

@@ -22,7 +22,7 @@ $svc_mis = getSetting($conn, 'service_mis_enabled') == '1';
 
     <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         <a href="<?= APP_URL ?>index.php"
-            class="flex items-center gap-3 px-3 py-2 rounded-xl transition-all <?= $current_page == 'index.php' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
+            class="flex items-center gap-3 px-3 py-2 rounded-lg transition-all <?= $current_page == 'index.php' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-slate-300 hover:bg-slate-800 hover:text-white' ?>">
             <i class="ph ph-squares-four text-lg"></i>
             <span class="font-medium">Dashboard</span>
         </a>
@@ -74,6 +74,11 @@ $svc_mis = getSetting($conn, 'service_mis_enabled') == '1';
             <i class="ph ph-hand-coins text-lg text-emerald-500"></i>
             <span class="text-sm"><?= $_SESSION['role'] == 'admin' ? 'New Disbursal' : 'Apply for Loan' ?></span>
         </a>
+        <a href="<?= APP_URL ?>loans/today_collection.php"
+            class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'today_collection.php' ? 'bg-indigo-600/10 text-indigo-400 font-bold border border-indigo-500/10' : 'text-slate-400 hover:text-white' ?>">
+            <i class="ph ph-phone-call text-lg text-indigo-400"></i>
+            <span class="text-sm">Today's Collections</span>
+        </a>
         <a href="<?= APP_URL ?>loans/pay.php"
             class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'pay.php' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white' ?>">
             <i class="ph ph-currency-circle-dollar text-lg text-amber-500"></i>
@@ -89,11 +94,28 @@ $svc_mis = getSetting($conn, 'service_mis_enabled') == '1';
             <i class="ph ph-chart-line-up text-lg text-emerald-500"></i>
             <span class="text-sm">Collection Report</span>
         </a>
-        <a href="<?= APP_URL ?>reports/defaulters.php"
-            class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'defaulters.php' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white' ?>">
-            <i class="ph ph-warning-octagon text-lg text-rose-500"></i>
-            <span class="text-sm">Defaulters List</span>
-        </a>
+        <?php if ($_SESSION['role'] == 'admin'): ?>
+            <a href="<?= APP_URL ?>reports/branch_report.php"
+                class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'branch_report.php' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white' ?>">
+                <i class="ph ph-buildings text-lg text-indigo-400"></i>
+                <span class="text-sm">Branch Portfolio</span>
+            </a>
+            <a href="<?= APP_URL ?>reports/staff_commissions.php"
+                class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'staff_commissions.php' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white' ?>">
+                <i class="ph ph-coins text-lg text-amber-500"></i>
+                <span class="text-sm">Commission Report</span>
+            </a>
+            <a href="<?= APP_URL ?>reports/defaulters.php"
+                class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'defaulters.php' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white' ?>">
+                <i class="ph ph-warning-octagon text-lg text-rose-500"></i>
+                <span class="text-sm">Defaulters List</span>
+            </a>
+            <a href="<?= APP_URL ?>reports/cancelled_receipts.php"
+                class="group flex items-center gap-3 px-3 py-1.5 rounded-lg transition-all <?= $current_page == 'cancelled_receipts.php' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white' ?>">
+                <i class="ph ph-trash text-lg text-rose-500"></i>
+                <span class="text-sm">Canceled Receipt</span>
+            </a>
+        <?php endif; ?>
 
         <?php if ($_SESSION['role'] == 'admin'): ?>
             <!-- Administration -->
@@ -191,7 +213,7 @@ $svc_mis = getSetting($conn, 'service_mis_enabled') == '1';
 
                 <!-- Dropdown Menu -->
                 <div id="profileDropdown"
-                    class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden py-1">
+                    class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden py-1">
                     <div class="px-4 py-2 border-b border-gray-50 md:hidden">
                         <p class="text-sm font-bold text-gray-800 leading-tight">
                             <?= isset($_SESSION['name']) ? htmlspecialchars($_SESSION['name']) : 'User' ?>

@@ -3,6 +3,8 @@ require_once '../includes/db.php';
 checkAuth();
 require_once '../includes/functions.php';
 
+$loan_only = getSetting($conn, 'loan_only_mode') == '1';
+
 // Handle Delete Member (BEFORE any HTML output)
 if(isset($_POST['delete_member'])) {
     if($_SESSION['role'] !== 'admin') {
@@ -31,7 +33,7 @@ require_once '../includes/sidebar.php';
 
 // Handle pagination and search
 $search = isset($_GET['search']) ? sanitize($conn, $_GET['search']) : '';
-$where = "WHERE 1=1";
+$where = "WHERE 1=1" . getBranchWhere('', false);
 if($search) {
     $where .= " AND (member_no LIKE '%$search%' OR first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR aadhar_no LIKE '%$search%' OR phone LIKE '%$search%')";
 }
@@ -137,9 +139,15 @@ $result = mysqli_query($conn, $sql);
                                         <a href="ledger.php?id=<?= $row['id'] ?>" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Ledger and Accounts">
                                             <i class="ph ph-file-text text-xl"></i>
                                         </a>
-                                        <a href="../accounts/open.php?member_id=<?= $row['id'] ?>" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Open New Account">
-                                            <i class="ph ph-folder-plus text-xl"></i>
-                                        </a>
+                                        <?php if($loan_only): ?>
+                                            <a href="../loans/disburse.php?member_id=<?= $row['id'] ?>" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Disburse New Loan">
+                                                <i class="ph ph-hand-coins text-xl"></i>
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="../accounts/open.php?member_id=<?= $row['id'] ?>" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Open New Account">
+                                                <i class="ph ph-folder-plus text-xl"></i>
+                                            </a>
+                                        <?php endif; ?>
                                         <?php if($_SESSION['role'] == 'admin' && $row['total_accounts'] == 0): ?>
                                             <form method="POST" action="" onsubmit="return confirm('Are you sure you want to PERMANENTLY delete this member? This cannot be undone.')" class="inline">
                                                 <input type="hidden" name="member_id" value="<?= $row['id'] ?>">

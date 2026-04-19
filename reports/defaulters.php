@@ -3,6 +3,12 @@ require_once '../includes/db.php';
 checkAuth();
 require_once '../includes/functions.php';
 
+if($_SESSION['role'] !== 'admin') {
+    $_SESSION['error'] = "Access Denied. Admins only.";
+    header("Location: ../index.php");
+    exit();
+}
+
 $advisor_id = isset($_GET['advisor_id']) ? (int)$_GET['advisor_id'] : 0;
 
 $where = "WHERE ls.status = 'Overdue'";
@@ -35,17 +41,17 @@ require_once '../includes/sidebar.php';
     <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <i class="ph ph-warning-octagon text-rose-500 text-3xl"></i> Loan Defaulters Report
+                <i class="ph ph-warning-octagon text-rose-500 text-3xl"></i> Late Payment List
             </h1>
-            <p class="text-gray-500 text-sm mt-1">List of members with overdue EMI payments and accumulated fines.</p>
+            <p class="text-gray-500 text-sm mt-1">List of members who have not paid their EMI and have fines.</p>
         </div>
         <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1">
-            <i class="ph ph-printer"></i> Print Defaulter List
+            <i class="ph ph-printer"></i> Print Late List
         </button>
     </div>
 
     <!-- Filter Form -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 font-medium">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6 font-medium">
         <form method="GET" action="" class="flex items-end gap-4">
             <div class="flex-1">
                 <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Filter by Advisor (Collector)</label>
@@ -63,7 +69,7 @@ require_once '../includes/sidebar.php';
     </div>
 
     <!-- Data Table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
@@ -110,7 +116,7 @@ require_once '../includes/sidebar.php';
                             </tr>
                         <?php endwhile; ?>
                         <tr class="bg-rose-900 text-white font-black">
-                            <td colspan="3" class="px-6 py-4 text-right uppercase tracking-[0.2em] text-xs">Gross NPA / Total Overdue Portfolio</td>
+                            <td colspan="3" class="px-6 py-4 text-right uppercase tracking-[0.2em] text-xs">Total Unpaid Money (Portfolio)</td>
                             <td class="px-6 py-4 text-right"><?= formatCurrency($total_overdue) ?></td>
                             <td class="px-6 py-4 text-right"><?= formatCurrency($total_fine) ?></td>
                             <td class="px-6 py-4 text-right text-xl print:hidden"><?= formatCurrency($total_overdue + $total_fine) ?></td>
@@ -118,7 +124,7 @@ require_once '../includes/sidebar.php';
                     <?php else: ?>
                         <tr><td colspan="6" class="px-6 py-12 text-center text-gray-500">
                             <i class="ph ph-check-circle text-4xl text-emerald-500 mb-2 block"></i>
-                            Excellent! No defaulters found in the current filtering.
+                            Excellent! No people with late payments found.
                         </td></tr>
                     <?php endif; ?>
                 </tbody>

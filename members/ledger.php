@@ -4,6 +4,7 @@ checkAuth();
 require_once '../includes/functions.php';
 
 $member_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$loan_only = getSetting($conn, 'loan_only_mode') == '1';
 
 $m_res = mysqli_query($conn, "SELECT * FROM members WHERE id = $member_id");
 if(!$member = mysqli_fetch_assoc($m_res)) {
@@ -178,9 +179,15 @@ require_once '../includes/sidebar.php';
                     <?php endif; ?>
                 </div>
                 <div class="p-4 bg-indigo-950">
-                    <a href="../accounts/open.php?member_id=<?= $member_id ?>" class="block w-full text-center text-sm font-medium text-indigo-300 hover:text-white transition-colors">
-                        <i class="ph ph-plus-circle"></i> Open New Account
-                    </a>
+                    <?php if($loan_only): ?>
+                        <a href="../loans/disburse.php?member_id=<?= $member_id ?>" class="block w-full text-center text-sm font-medium text-indigo-300 hover:text-white transition-colors">
+                            <i class="ph ph-hand-coins"></i> Disburse New Loan
+                        </a>
+                    <?php else: ?>
+                        <a href="../accounts/open.php?member_id=<?= $member_id ?>" class="block w-full text-center text-sm font-medium text-indigo-300 hover:text-white transition-colors">
+                            <i class="ph ph-plus-circle"></i> Open New Account
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

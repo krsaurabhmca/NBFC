@@ -8,10 +8,12 @@ $to_date = isset($_GET['to_date']) ? sanitize($conn, $_GET['to_date']) : date('Y
 $advisor_id = isset($_GET['advisor_id']) ? (int)$_GET['advisor_id'] : 0;
 $txn_type = isset($_GET['txn_type']) ? sanitize($conn, $_GET['txn_type']) : '';
 
-$where = "WHERE DATE(t.transaction_date) BETWEEN '$from_date' AND '$to_date'";
+$where = "WHERE DATE(t.transaction_date) BETWEEN '$from_date' AND '$to_date'" . getBranchWhere('a', false);
 if ($advisor_id > 0) {
     $where .= " AND t.created_by = $advisor_id";
 }
+// Exclude Cancelled transactions from collection report
+$where .= " AND (t.status IS NULL OR t.status != 'Cancelled')";
 if ($txn_type) {
     $where .= " AND t.transaction_type = '$txn_type'";
 }
@@ -36,9 +38,9 @@ require_once '../includes/sidebar.php';
     <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <i class="ph ph-receipt text-indigo-500 text-3xl"></i> Collection Report
+                <i class="ph ph-receipt text-indigo-500 text-3xl"></i> Money Received List
             </h1>
-            <p class="text-gray-500 text-sm mt-1">Detailed list of cash inflows and transactions in the field.</p>
+            <p class="text-gray-500 text-sm mt-1">List of all money collected by staff and members.</p>
         </div>
         <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1">
             <i class="ph ph-printer"></i> Print Report
@@ -46,7 +48,7 @@ require_once '../includes/sidebar.php';
     </div>
 
     <!-- Filter Form -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
         <form method="GET" action="" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div>
                 <label class="block text-xs font-bold text-gray-400 uppercase mb-1">From Date</label>
@@ -77,14 +79,14 @@ require_once '../includes/sidebar.php';
             </div>
             <div>
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-sm transition-all shadow-md flex items-center justify-center gap-2">
-                    <i class="ph ph-funnel"></i> Apply Filter
+                    <i class="ph ph-funnel"></i> Search Now
                 </button>
             </div>
         </form>
     </div>
 
     <!-- Data Table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
@@ -136,8 +138,10 @@ require_once '../includes/sidebar.php';
                                 </td>
                                 <?php if($_SESSION['role'] == 'admin'): ?>
                                 <td class="px-6 py-4 text-center">
-                                    <?php if($row['transaction_type'] == 'EMI'): ?>
-                                        <a href="../loans/cancel_emi.php?id=<?= $row['transaction_id'] ?>" onclick="return confirm('Void & Cancel this EMI receipt?')" class="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-colors inline-block" title="Cancel Receipt">
+                                    <?php if($row['transaction_type'] == 'EMI' && $_SESSION['role'] == 'admin'): ?>
+                                        <a href="javascript:void(0)" 
+                                           onclick="openCancelModal('<?= $row['transaction_id'] ?>', '<?= formatCurrency($row['amount']) ?>')"
+                                           class="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-colors inline-block" title="Cancel Receipt">
                                             <i class="ph ph-trash text-lg"></i>
                                         </a>
                                     <?php else: ?>
@@ -148,7 +152,7 @@ require_once '../includes/sidebar.php';
                             </tr>
                         <?php endwhile; ?>
                         <tr class="bg-gray-900 text-white font-bold">
-                            <td colspan="<?= $_SESSION['role'] == 'admin' ? '5' : '4' ?>" class="px-6 py-4 text-right uppercase tracking-widest text-xs">Total Collection in Period</td>
+                            <td colspan="<?= $_SESSION['role'] == 'admin' ? '5' : '4' ?>" class="px-6 py-4 text-right uppercase tracking-widest text-xs">Total Money Received in Period</td>
                             <td class="px-6 py-4 text-right text-lg"><?= formatCurrency($total_amount) ?></td>
                         </tr>
                     <?php else: ?>
@@ -159,5 +163,71 @@ require_once '../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<!-- Cancellation Modal -->
+<div id="cancelModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all border border-white/20">
+        <div class="px-6 py-8">
+            <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center text-3xl mx-auto mb-6">
+                <i class="ph ph-warning-circle"></i>
+            </div>
+            <h3 class="text-xl font-black text-center text-gray-800 mb-2">Cancel This Payment?</h3>
+            <p class="text-center text-gray-500 text-sm mb-8">This will void transaction <span id="modalTxnId" class="font-bold text-gray-800"></span> for <span id="modalAmount" class="font-bold text-gray-800"></span> and mark EMI as unpaid again.</p>
+            
+            <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-1">Why are you canceling? <span class="text-rose-500">*</span></label>
+            <textarea id="cancelReason" placeholder="Enter reason (required)..." class="w-full h-32 px-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none transition-all resize-none"></textarea>
+            
+            <div class="grid grid-cols-2 gap-4 mt-8">
+                <button onclick="closeCancelModal()" class="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:bg-gray-100 transition-all">Go Back</button>
+                <button onclick="submitCancellation()" class="px-6 py-3 rounded-xl text-sm font-bold bg-rose-600 text-white shadow-xl shadow-rose-200 hover:bg-rose-700 active:scale-95 transition-all">Confirm Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCancelTxnId = null;
+
+function openCancelModal(txnId, amount) {
+    currentCancelTxnId = txnId;
+    document.getElementById('modalTxnId').innerText = txnId;
+    document.getElementById('modalAmount').innerText = amount;
+    document.getElementById('cancelModal').classList.remove('hidden');
+    document.getElementById('cancelReason').value = '';
+    document.getElementById('cancelReason').focus();
+}
+
+function closeCancelModal() {
+    document.getElementById('cancelModal').classList.add('hidden');
+}
+
+function submitCancellation() {
+    const reason = document.getElementById('cancelReason').value.trim();
+    if (!reason) {
+        alert("Please provide a cancellation reason.");
+        return;
+    }
+    
+    // Create a form and submit it to cancel_emi.php
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '../loans/cancel_emi.php';
+    
+    const txnInput = document.createElement('input');
+    txnInput.type = 'hidden';
+    txnInput.name = 'txn_id';
+    txnInput.value = currentCancelTxnId;
+    form.appendChild(txnInput);
+    
+    const reasonInput = document.createElement('input');
+    reasonInput.type = 'hidden';
+    reasonInput.name = 'cancel_reason';
+    reasonInput.value = reason;
+    form.appendChild(reasonInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

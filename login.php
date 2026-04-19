@@ -29,6 +29,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
                 $_SESSION['username'] = $row['username'];
                 $_SESSION['role'] = $row['role'];
                 $_SESSION['name'] = $row['name'];
+                $_SESSION['branch_id'] = $row['branch_id'];
                 logAction($conn, $_SESSION['user_id'], 'Login Success', 'User signed into the system.');
                 header("Location: index.php");
                 exit();

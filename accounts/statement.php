@@ -19,7 +19,7 @@ if(!$acc) {
     die("Statement not available for this account type or account not found.");
 }
 
-$txns = mysqli_query($conn, "SELECT * FROM transactions WHERE account_id = $id ORDER BY transaction_date ASC");
+$txns = mysqli_query($conn, "SELECT * FROM transactions WHERE account_id = $id AND (status IS NULL OR status != 'Cancelled') ORDER BY transaction_date ASC");
 
 require_once '../includes/header.php';
 require_once '../includes/sidebar.php';

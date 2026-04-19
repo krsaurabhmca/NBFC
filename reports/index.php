@@ -57,8 +57,8 @@ require_once '../includes/sidebar.php';
             <a href="account_report.php" class="bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1.5 hover:bg-gray-50">
                 <i class="ph ph-folder-open text-indigo-500"></i> Account Open Report
             </a>
-            <a href="?type=maturity" class="<?= $type=='maturity'?'bg-indigo-600 text-white':'bg-white text-gray-700' ?> px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
-                Maturity Report
+            <a href="branch_report.php" class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-1.5 hover:bg-indigo-100">
+                <i class="ph ph-buildings"></i> Branch Report
             </a>
             <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1">
                 <i class="ph ph-printer"></i> Print
