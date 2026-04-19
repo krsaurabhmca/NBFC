@@ -1,76 +1,68 @@
 # Jeevan Nirman – NBFC Core Banking System
 
-A powerful, high-density, and modern Core Banking Solution (CBS) designed for Non-Banking Financial Companies (NBFCs), Cooperative Societies, and Micro-Finance Institutions. This platform provides a comprehensive suite of tools for member KYC, automated interest calculations, field collection through advisors, and robust financial reporting.
+A powerful, high-density, and modern Core Banking Solution (CBS) designed for Non-Banking Financial Companies (NBFCs), Cooperative Societies, and Micro-Finance Institutions. This platform provides a comprehensive suite of tools for member KYC, automated interest calculations, branch-based isolation, and robust financial auditing.
 
-![Dashboard Preview](https://img.shields.io/badge/Status-Stable-emerald)
+![Status](https://img.shields.io/badge/Status-Stable-emerald)
 ![License](https://img.shields.io/badge/License-Proprietary-indigo)
-![Tech Stack](https://img.shields.io/badge/Stack-PHP_|_MySQL_|_Tailwind_CSS-blue)
+![Architecture](https://img.shields.io/badge/Architecture-Branch_Siloed-blue)
 
 ---
 
 ## 🌟 Key Features
 
-### 👤 Member & KYC Management
-*   **360° Member Profiles**: Comprehensive ledger views, photo/signature uploads, and digital KYC documentation.
-*   **Member Directory**: High-density table view with advanced filtering and status management (Active, Suspended).
-*   **Membership Cards**: Auto-generated membership IDs with unique system-wide prefixes.
+### 🏢 Multi-Branch Architecture (New)
+*   **Branch-Based Data Isolation**: Staff members are strictly siloed to their assigned branches. They can only view members, loans, and collections related to their specific base.
+*   **Centralized Oversight**: Administrators maintain global access across all branches with the ability to switch views and monitor performance remotely.
+*   **Branch Management**: Easily add, update, and manage multiple branch locations and codes.
 
-### 🏦 Core Banking Operations
-*   **Multi-Product Support**: Handle Savings, Loans, Fixed Deposits (FD), Recurring Deposits (RD), Monthly Income Schemes (MIS), and Daily Deposits (DD) in one unified ledger.
-*   **Automated Interest Engine**: Built-in support for monthly/annual interest calculations with configurable rates via the admin panel.
-*   **Loan Lifecycle Management**: From disbursal to EMI schedule and penalty (Fine) calculation for delayed payments.
+### 👤 Interactive KYC & Document Suite
+*   **Full Identity Stack**: Support for Member Photo and Digital Signature uploads with high-resolution "Zoom" capability.
+*   **Document Management**: Upload Aadhar Card, PAN Card, and Cancelled Cheque copies (Up to 2MB).
+*   **Live Preview**: Real-time thumbnail generation during enrollment and loan application stages.
+*   **Sanction Audit Modal**: A professional, full-screen document viewer for administrators to verify KYC materials before loan approval.
 
-### 💼 Field Staff & Advisor Operations
-*   **Prepaid Wallet Model**: Real-time deposit collection using a secure advisor wallet system.
-*   **Advisor Performance Tracking**: Specific dashboards and wallet transaction history for field staff.
-*   **Mobile-Ready Deposit Collection**: Optimized for tablets and mobile devices used during door-to-door collections.
+### 🏦 Advanced Loan Engine
+*   **Flat & Reducing Interest**: Native support for simple interest and reducing balance EMI models.
+*   **Flexible Repayment Cycles**: Configure Monthly, Bi-Weekly, or Weekly collection schedules.
+*   **Sanction Queue**: Staff can apply for loans; final "Approval & Issue" is restricted to the Administrative sanction panel.
+*   **Automated EMI Scheduler**: Precision calculation of principal and interest components across the loan tenure.
 
-### 📊 Intelligence & Reporting
-*   **Financial Summary**: Real-time portfolio pulse showing assets vs. liabilities and portfolio distribution.
-*   **Account Opening Reports**: Dynamic date-range filters (Today, Week, Month, Year) for auditing growth.
-*   **Daily Pulse**: Live dashboard tracking today's net cash position (Inflow vs. Outflow).
+### 🛡️ Audit & Financial Control
+*   **Soft Transaction Cancellation**: Revert payment entries with mandatory "Cancellation Reasons" and a full digital audit trail.
+*   **Commission Tracking**: Automated calculation of Disbursal and Collection commissions for advisors.
+*   **Defaulter Analytics**: Early-warning reports for overdue installments across branches.
+*   **Money Received List**: Specialized branch-filtered collection reports for daily reconciliations.
 
 ---
 
-## 🚀 Technical Architecture
-
-*   **Backend**: PHP 8.x with `mysqli` for high-performance database interactions.
-*   **Frontend**: Tailwind CSS for a modern, responsive, and high-density UI.
-*   **Icons**: Phosphor Icons (6,000+ industry-standard icon library).
-*   **Persistence**: MySQL with relational integrity for critical financial data.
+## 🚀 Technical stack
+*   **Backend**: PHP 8.x (High-Performance mysqli)
+*   **Frontend**: Tailwind CSS (Premium Compact Architecture)
+*   **Icons**: Phosphor Icons (Industry Standard)
+*   **Migration**: Independent Schema Sync Engine (`migrate.php`)
 
 ---
 
 ## 🛠️ Installation & Setup
 
 1.  **Server Requirements**: 
-    *   Apache Server (XAMPP/WAMP/LAMP recommended).
-    *   PHP 7.4 or higher.
-    *   MySQL 5.7 or higher.
+    *   XAMPP/WAMP/LAMP (PHP 7.4+).
+    *   MySQL 5.7+ or MariaDB.
 2.  **Database Configuration**:
-    *   Import the `database.sql` file provided in the repository into your local MySQL server.
-    *   Update `includes/db.php` with your database credentials.
-3.  **Permissions**:
-    *   Ensure the `/uploads` directory has **write permissions** (0755 or 0777 depending on OS).
-4.  **Admin Login**:
-    *   **Username**: `admin`
-    *   **Password**: `admin123` *(Please change after first login)*.
-
----
-
-## ⚙️ Customization
-
-Customize branding easily through the **System Settings** panel:
-*   **Center Name**: Change system identity globally (currently **Jeevan Nirman**).
-*   **Logos & Stamps**: Upload your authorized organization logo and seal for automated receipt printing.
-*   **Interest Rates**: Setup custom ROI for Savings, FDs, and Loans per product type.
+    *   Import `database.sql` for fresh installations.
+    *   Update `includes/db.php` with your connection details.
+3.  **Live Server Migration**:
+    *   If updating an existing installation, browse to `yoursite.com/migrate.php` once to automatically sync the latest schema (Branch ID columns, KYC paths, Audit tables).
+    *   **CRITICAL**: Delete `migrate.php` immediately after execution.
+4.  **Permissions**:
+    *   Ensure the `/uploads` and `/uploads/documents` directories are writable (0755/0777).
 
 ---
 
 ## 🛡️ Security & Compliance
-*   **Role-Based Access Control (RBAC)**: Distinct permissions for Super-Admin, Center Manager, and Field Advisors.
-*   **RBI Compliance Toggle**: Built-in logic for interest capping and late fee calculations.
-*   **Atomic Transactions**: All financial movements are recorded with double-entry principles to ensure ledger balance.
+*   **Role-Based Access Control (RBAC)**: Distinct permissions for Global Admin and Branch Staff.
+*   **Atomic Transactions**: Double-entry accounting principles to ensure ledger integrity.
+*   **Data Siloing**: Hardware-level logic in SQL queries using `getBranchWhere()` to prevent staff from accessing cross-branch data.
 
 ---
 © 2026 Developed for NBFC Core Operations. All rights reserved.
